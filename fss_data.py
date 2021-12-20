@@ -22,10 +22,11 @@ def dssave(ds, filename, dtype = 'f'):
 		array.array('I', [d, n]).tofile(datafile);
 		array.array(dtype, ds.reshape(np.prod(ds.shape))).tofile(datafile);
 
-d = 8; # 8 125 256
-nx = 64; # 64 735 768
+d = 256; # 8 125 256
+nx = 768; # 64 735 768
 iters = np.min([int(250*np.round(75*np.sqrt(d)/250,0)), int((2**31-1)/((nx*(d+1)+d)*8)/4)*4]); # 250 750 1250
 scale = np.power(10,-1*np.log10(d));
+arch = 32
 
 if d == 8:
         si = 0.1;
@@ -80,7 +81,7 @@ print("\nLa soluzione è:");
 for i in range(0, d):
         print("xsol[",i,"] =", xok[i]);
 print("\nf(xok) =", f(xok));
-print('-c data/data'+str(d)+'_'+str(nx)+'_'+str(iters)+'/coeff32_'+str(d)+'.ds2 -r data/data'+str(d)+'_'+str(nx)+'_'+str(iters)+'/rand32_'+str(d)+'_'+str(nx)+'_'+str(iters)+'.ds2 -x data/data'+str(d)+'_'+str(nx)+'_'+str(iters)+'/x32_'+str(d)+'_'+str(nx)+'.ds2 -np '+str(nx)+' -si '+str(si)+' -sv '+str(sv)+' -w '+str(w)+' -it '+str(iters)+' -d');
+print('-c data/data'+str(d)+'_'+str(nx)+'_'+str(iters)+'/coeff'+str(arch)+'_'+str(d)+'.ds2 -r data/data'+str(d)+'_'+str(nx)+'_'+str(iters)+'/rand'+str(arch)+'_'+str(d)+'_'+str(nx)+'_'+str(iters)+'.ds2 -x data/data'+str(d)+'_'+str(nx)+'_'+str(iters)+'/x'+str(arch)+'_'+str(d)+'_'+str(nx)+'.ds2 -np '+str(nx)+' -si '+str(si)+' -sv '+str(sv)+' -w '+str(w)+' -it '+str(iters)+' -d');
 
 dssave(xok.reshape(1,d),'cmake-build-debug/data/data'+str(d)+'_'+str(nx)+'_'+str(iters)+'/sol32_'+str(d)+'_'+str(nx)+'_'+str(iters)+'.ds2',dtype='f');
 dssave(xok.reshape(1,d),'cmake-build-debug/data/data'+str(d)+'_'+str(nx)+'_'+str(iters)+'/sol64_'+str(d)+'_'+str(nx)+'_'+str(iters)+'.ds2',dtype='d');

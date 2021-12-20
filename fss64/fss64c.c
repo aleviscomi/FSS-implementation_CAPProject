@@ -181,13 +181,13 @@ extern void prova(params* input);
 // FUNZIONI DI UTILITA'
 
 /*
- * Funzione che calcola un numero generateRandom tra 'from' e 'to' a partire
+ * Funzione che calcola un numero getRandom tra 'from' e 'to' a partire
  * dal numero 'input->r[randIndex]
  */
-type generateRandom(params* input, int* randIndex, int from, int to) {
+type getRandom(params* input, int* randIndex, int from, int to) {
     return from + (to-from)*input->r[(*randIndex)++];
-    //return from + (to-from)*((float) rand() / (float) RAND_MAX); //calcolo dei generateRandom alternativo utile per fare test
-} //generateRandom
+    //return from + (to-from)*((float) rand() / (float) RAND_MAX); //calcolo dei getRandom alternativo utile per fare test
+} //getRandom
 
 /*
  * Funzione che calcola e restituisce, dati i vettori c e x, e la dimensione size di
@@ -200,7 +200,7 @@ type function(VECTOR c, VECTOR x, int size) {
     type prodScal = 0;
     //calcolo x^2 e c o x
     for(i=0; i < size; i++) {
-        xQuad += pow(x[i], 2);
+        xQuad += x[i] * x[i];
         prodScal += c[i] * x[i];
     }
 
@@ -242,7 +242,7 @@ void individualMovement(params* input, int* randIndex, int i, VECTOR df, MATRIX 
 
     //calcolo la possibile variazione di posizione del pesce i-esimo, come: y[j] = x[i][j] + rand(-1, 1) * stepind
     for(j=0; j<input->d; j++)
-        y[j] = input->x[input->d * i + j] + generateRandom(input, randIndex, -1, 1) * input->stepind;
+        y[j] = input->x[input->d * i + j] + getRandom(input, randIndex, -1, 1) * input->stepind;
 
     //calcolo i valori di funzione con x e y
     fx = function(input->c, &input->x[input->d * i], input->d);
@@ -366,13 +366,13 @@ void volitiveMovement(params* input, int* randIndex, VECTOR b, bool weightGain){
 
     //calcolo, per ogni pesce, la nuova posizione dovuta al movimento volitivo
     for(i=0; i<input->np; i++){
-        //calcolo di un numero generateRandom per ogni pesce
-        randNum = generateRandom(input, randIndex, 0, 1);
+        //calcolo di un numero getRandom per ogni pesce
+        randNum = getRandom(input, randIndex, 0, 1);
 
         dist = 0;
         //calcolo della distanza euclidea: sqrt(sum(((B[j]) - (x[i][j]))^2))
         for(j=0; j<input->d; j++)
-            dist += pow((b[j] - input->x[i * input->d + j]), 2);
+            dist += (b[j] - input->x[i * input->d + j]) * (b[j] - input->x[i * input->d + j]);
         dist = sqrt(dist);
 
         //calcolo del movimento per ogni coordinata del pesce i-esimo
@@ -399,7 +399,7 @@ void volitiveMovement(params* input, int* randIndex, VECTOR b, bool weightGain){
 void fss(params* input){
     /** dichiarazione */
     int it, i;
-    int randIndex; //indice per il file contenente i generateRandom
+    int randIndex; //indice per il file contenente i getRandom
     VECTOR w; //vettore dei pesi dei pesci
     VECTOR df; //vettore delle variazioni di funzione dei pesci
     MATRIX dx; //matrice delle variazioni di posizione dei pesci
@@ -410,6 +410,13 @@ void fss(params* input){
     type min; //memorizza il min degli f(x) finali
     int minIndex; //memorizza l'indice del min degli f(x) finali
 
+    clock_t t;
+    clock_t t1=0;
+    clock_t t2=0;
+    clock_t t3=0;
+    clock_t t4=0;
+    clock_t t5=0;
+
     /** inizializzazione */
     // le posizioni dei pesci sono già inizializzate leggendo la matrice x64_x_x.ds2
     w = (VECTOR) alloc_matrix(1, input->np);
@@ -419,7 +426,7 @@ void fss(params* input){
     stepindInit = input->stepind;
     stepvolInit = input->stepvol;
     randIndex = 0;
-    //srand(time(NULL)); //utile in fase di testing per calcolare ad ogni esecuzione numeri generateRandom differenti
+    //srand(time(NULL)); //utile in fase di testing per calcolare ad ogni esecuzione numeri getRandom differenti
     weightGain = false;
 
     //inizializzazione pesi pesci a wscale/2
@@ -430,20 +437,35 @@ void fss(params* input){
     it = 0;
     while (it < input->iter) {
         /** movimento individuale */
+        t = clock();
         for(i=0; i<input->np; i++)
             individualMovement(input, &randIndex, i, df, dx);
+        t = clock() - t;
+        t1 += t;
 
         /** operatore di alimentazione */
+        t = clock();
         feedOperator(input, w, df, &weightGain);
+        t = clock() - t;
+        t2 += t;
 
         /** movimento istintivo */
+        t = clock();
         instinctiveMovement(input, dx, df);
+        t = clock() - t;
+        t3 += t;
 
         /** calcolo baricentro */
+        t = clock();
         calculateB(input, w, b);
+        t = clock() - t;
+        t4 += t;
 
         /** movimento volitivo */
+        t = clock();
         volitiveMovement(input, &randIndex, b, weightGain);
+        t = clock() - t;
+        t5 += t;
 
         /** aggiorno parametri */
         input->stepind = input->stepind - stepindInit / input->iter;
@@ -451,6 +473,12 @@ void fss(params* input){
         weightGain = false;
         it++;
     }
+    printf("\nIndividual Movement: %f\n\n",(float)t1/CLOCKS_PER_SEC);
+    printf("\nFeed Operator: %f\n\n",(float)t2/CLOCKS_PER_SEC);
+    printf("\nInstinctive Movement: %f\n\n",(float)t3/CLOCKS_PER_SEC);
+    printf("\nBaricentre: %f\n\n",(float)t4/CLOCKS_PER_SEC);
+    printf("\nVolitive Movement: %f\n\n",(float)t5/CLOCKS_PER_SEC);
+
     /** assegno ad xh, argmin(f) */
     min = function(input->c, &input->x[0], input->d);
     minIndex = 0;

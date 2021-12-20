@@ -103,7 +103,7 @@ void dealloc_matrix(MATRIX mat) {
 * 	=========
 *
 *	Legge da file una matrice di N righe
-* 	e M colonne e la memorizza in un array lineare in column-major order
+* 	e M colonne e la memorizza in un array lineare in row-major order
 *
 * 	Codifica del file:
 * 	primi 4 byte: numero di colonne (N) --> numero intero
@@ -118,7 +118,7 @@ void dealloc_matrix(MATRIX mat) {
 */
 MATRIX load_data(char* filename, int *n, int *k) {
     FILE* fp;
-    int rows, cols, status, i, j;
+    int rows, cols, status, i;
 
     fp = fopen(filename, "rb");
 
@@ -131,10 +131,7 @@ MATRIX load_data(char* filename, int *n, int *k) {
     status = fread(&rows, sizeof(int), 1, fp);
 
     MATRIX data = alloc_matrix(rows,cols);
-    for (i = 0; i < rows; i++)
-        for (j = 0; j < cols; j++)
-            status = fread(&data[i + j * rows], sizeof(type), 1, fp);
-
+    status = fread(data, sizeof(type), rows*cols, fp);
     fclose(fp);
 
     *n = rows;
@@ -157,20 +154,16 @@ MATRIX load_data(char* filename, int *n, int *k) {
 */
 void save_data(char* filename, void* X, int n, int k) {
     FILE* fp;
-    int i, j;
+    int i;
     fp = fopen(filename, "wb");
     if(X != NULL){
         fwrite(&k, 4, 1, fp);
         fwrite(&n, 4, 1, fp);
         for (i = 0; i < n; i++) {
-            for (j = 0; j < k; j++) {
-                fwrite(&X[i + j * n], sizeof(type), 1, fp);
-            }
-            //fwrite(X, sizeof(type), k, fp);
+            fwrite(X, sizeof(type), k, fp);
             //printf("%i %i\n", ((int*)X)[0], ((int*)X)[1]);
-            //X += sizeof(type)*k;
+            X += sizeof(type)*k;
         }
-
     }
     else{
         int x = 0;
@@ -207,7 +200,7 @@ type function(VECTOR c, VECTOR x, int size) {
     type prodScal = 0;
     //calcolo x^2 e c o x
     for(i=0; i < size; i++) {
-        xQuad += pow(x[i], 2);
+        xQuad += x[i] * x[i];
         prodScal += c[i] * x[i];
     }
 
@@ -229,21 +222,6 @@ type min(VECTOR v, int size){
     return min;
 } //min
 
-/*
- * Funzione che data una matrice in column-major order
- * restituisce la riga di indice 'index'
- */
-VECTOR getRow(MATRIX m, int index, int rows, int cols) {
-    int i, j;
-    VECTOR temp;
-    temp = (VECTOR) alloc_matrix(1, cols);
-
-    for (j = 0; j < cols; j++)
-        temp[j] = m[index + j * rows];
-
-    return temp;
-}
-
 
 
 
@@ -264,11 +242,10 @@ void individualMovement(params* input, int* randIndex, int i, VECTOR df, MATRIX 
 
     //calcolo la possibile variazione di posizione del pesce i-esimo, come: y[j] = x[i][j] + rand(-1, 1) * stepind
     for(j=0; j<input->d; j++)
-        y[j] = input->x[i + j * input->np] + getRandom(input, randIndex, -1, 1) * input->stepind;
-
+        y[j] = input->x[input->d * i + j] + getRandom(input, randIndex, -1, 1) * input->stepind;
 
     //calcolo i valori di funzione con x e y
-    fx = function(input->c, getRow(input->x, i, input->np, input->d), input->d);
+    fx = function(input->c, &input->x[input->d * i], input->d);
     fy = function(input->c, y, input->d);
 
 
@@ -276,14 +253,14 @@ void individualMovement(params* input, int* randIndex, int i, VECTOR df, MATRIX 
     if(fy < fx) {
         df[i] = fy - fx;
         for(j=0; j<input->d; j++) {
-            dx[i + j * input->np] = y[j] - input->x[i + j * input->np];
-            input->x[i + j * input->np] = y[j];
+            dx[input->d * i + j] = y[j] - input->x[input->d * i + j];
+            input->x[input->d * i + j] = y[j];
         }
     }
     else {
         df[i] = 0;
         for (j = 0; j < input->d; j++)
-            dx[i + j * input->np] = 0;
+            dx[input->d * i + j] = 0;
     }
 
     dealloc_matrix(y);
@@ -335,7 +312,7 @@ void instinctiveMovement(params* input, MATRIX dx, VECTOR df) {
     for(i=0; i < input->np; i++){
         sumdf+=df[i];
         for(j=0; j < input->d; j++)
-            vectI[j] += dx[i + j * input->np] * df[i];
+            vectI[j] += dx[input->d * i + j] * df[i];
     }
     if(sumdf != 0)
         for(i=0; i < input->d; i++)
@@ -344,7 +321,7 @@ void instinctiveMovement(params* input, MATRIX dx, VECTOR df) {
     //sommo I ai vettori x[i]
     for(i=0; i < input->np; i++)
         for(j=0; j < input->d; j++)
-            input->x[i + j * input->np] += vectI[j];
+            input->x[input->d * i + j] += vectI[j];
 
     dealloc_matrix(vectI);
 } //instinctiveMovement
@@ -365,7 +342,7 @@ void calculateB(params* input, VECTOR w, VECTOR b) {
     for(i=0; i < input->np; i++){
         sumW+=w[i];
         for(j=0; j < input->d; j++)
-            b[j] += input->x[i + j * input->np] * w[i];
+            b[j] += input->x[input->d * i + j] * w[i];
     }
 
     for(i=0; i < input->d; i++)
@@ -395,20 +372,20 @@ void volitiveMovement(params* input, int* randIndex, VECTOR b, bool weightGain){
         dist = 0;
         //calcolo della distanza euclidea: sqrt(sum(((B[j]) - (x[i][j]))^2))
         for(j=0; j<input->d; j++)
-            dist += pow((b[j] - input->x[i + j * input->np]), 2);
+            dist += (b[j] - input->x[i * input->d + j]) * (b[j] - input->x[i * input->d + j]);
         dist = sqrt(dist);
 
         //calcolo del movimento per ogni coordinata del pesce i-esimo
         for(j=0; j<input->d; j++) {
             //(stepvol * rand(0,1) * (x[i][j] - B[j])) / (distanzaEuclidea)
-            numerator[j] = (input->stepvol) * randNum * (input->x[i + j * input->np] - b[j]);
+            numerator[j] = (input->stepvol) * randNum * (input->x[i * input->d + j] - b[j]);
             numerator[j] /= dist;
 
             //se il peso del banco è aumentato allora i pesci si contraggono verso il baricentro (segno -), altrimenti viceversa (segno +)
             if (weightGain)
-                input->x[i + j * input->np] -= numerator[j];
+                input->x[i * input->d + j] -= numerator[j];
             else
-                input->x[i + j * input->np] += numerator[j];
+                input->x[i * input->d + j] += numerator[j];
         }
     }
 
@@ -433,6 +410,13 @@ void fss(params* input){
     type min; //memorizza il min degli f(x) finali
     int minIndex; //memorizza l'indice del min degli f(x) finali
 
+    clock_t t;
+    clock_t t1=0;
+    clock_t t2=0;
+    clock_t t3=0;
+    clock_t t4=0;
+    clock_t t5=0;
+
     /** inizializzazione */
     // le posizioni dei pesci sono già inizializzate leggendo la matrice x32_x_x.ds2
     w = (VECTOR) alloc_matrix(1, input->np);
@@ -453,20 +437,35 @@ void fss(params* input){
     it = 0;
     while (it < input->iter) {
         /** movimento individuale */
+        t = clock();
         for(i=0; i<input->np; i++)
             individualMovement(input, &randIndex, i, df, dx);
+        t = clock() - t;
+        t1 += t;
 
         /** operatore di alimentazione */
+        t = clock();
         feedOperator(input, w, df, &weightGain);
+        t = clock() - t;
+        t2 += t;
 
         /** movimento istintivo */
+        t = clock();
         instinctiveMovement(input, dx, df);
+        t = clock() - t;
+        t3 += t;
 
         /** calcolo baricentro */
+        t = clock();
         calculateB(input, w, b);
+        t = clock() - t;
+        t4 += t;
 
         /** movimento volitivo */
+        t = clock();
         volitiveMovement(input, &randIndex, b, weightGain);
+        t = clock() - t;
+        t5 += t;
 
         /** aggiorno parametri */
         input->stepind = input->stepind - stepindInit / input->iter;
@@ -474,11 +473,17 @@ void fss(params* input){
         weightGain = false;
         it++;
     }
+    printf("\nIndividual Movement: %f\n\n",(float)t1/CLOCKS_PER_SEC);
+    printf("\nFeed Operator: %f\n\n",(float)t2/CLOCKS_PER_SEC);
+    printf("\nInstinctive Movement: %f\n\n",(float)t3/CLOCKS_PER_SEC);
+    printf("\nBaricentre: %f\n\n",(float)t4/CLOCKS_PER_SEC);
+    printf("\nVolitive Movement: %f\n\n",(float)t5/CLOCKS_PER_SEC);
+
     /** assegno ad xh, argmin(f) */
-    min = function(input->c, getRow(input->x, i, input->np, input->d), input->d);
+    min = function(input->c, &input->x[0], input->d);
     minIndex = 0;
     for (i = 1; i < input->np; i++) {
-        type f = function(input->c, getRow(input->x, i, input->np, input->d), input->d);
+        type f = function(input->c, &input->x[input->d * i], input->d);
         if (f < min) {
             min = f;
             minIndex = i;
@@ -486,7 +491,7 @@ void fss(params* input){
     }
     input->xh = (VECTOR) alloc_matrix(1, input->d);
     for (i = 0; i < input->d; i++)
-        input->xh[i] = getRow(input->x, minIndex, input->np, input->d)[i];
+        input->xh[i] = input->x[input->d * minIndex + i];
 
     //COMMENTARE QUESTA RIGA!!!
     printf("f(xh) = %f\n", min); //stampa di debug per visualizzare il valore ottimo trovato
