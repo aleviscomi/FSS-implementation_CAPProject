@@ -33,7 +33,7 @@ section .data			; Sezione contenente dati inizializzati
 
 section .bss			; Sezione contenente dati non inizializzati
 	alignb 16
-	stepind		resd		1
+	ris	resd	1		; type* ris: puntatore utilizzato per i valori restituiti dalle funzioni
 
 section .text			; Sezione contenente il codice macchina
 
@@ -78,56 +78,80 @@ extern free_block
 ; Funzioni
 ; ------------------------------------------------------------
 
-global prova
+global prodottoScalare
 
-input		equ		8
+	dim	equ	4		; dimensione in byte di un singolo dato (4 se float, 8 se double)
+	p	equ	4		; grado di parallelismo SIMD (4 se float, 2 se double)
 
-msg	db	'stepind:',32,0
-nl	db	10,0
+	x	equ	8		; puntatore al primo vettore
+	y	equ	12		; puntatore al secondo vettore
+	n	equ	16		; dimensione vettori
 
+prodottoScalare:
+	;
+	; sequenza di ingresso nella funzione
+	;
 
+	push	ebp				; salvo il Base Pointer
+	mov		ebp, esp			; il Base Pointer punta al record di attivazione corrente
+	push	ebx				; salvo i registri da preservare
+	push	esi
+	push	edi
 
-prova:
-		; ------------------------------------------------------------
-		; Sequenza di ingresso nella funzione
-		; ------------------------------------------------------------
-		push		ebp		; salva il Base Pointer
-		mov		ebp, esp	; il Base Pointer punta al Record di Attivazione corrente
-		push		ebx		; salva i registri da preservare
-		push		esi
-		push		edi
-		; ------------------------------------------------------------
-		; legge i parametri dal Record di Attivazione corrente
-		; ------------------------------------------------------------
+	;
+	; lettura dei parametri dal record di attivazione
+	;
 
-		; elaborazione
-		
-		; esempio: stampa input->stepind
-		mov EAX, [EBP+input]	; indirizzo della struttura contenente i parametri
-		; [EAX]	input->x
-		; [EAX + 4] input->xh
-		; [EAX + 8] input->c
-		; [EAX + 12] input->r
-		; [EAX + 16] input->nx
-		; [EAX + 20] input->d
-		; [EAX + 24] input->iter
-		; [EAX + 28] input->stepind
-		; [EAX + 32] input->stepvol
-		; [EAX + 36] input->wscale
-		; ...
-		MOVSS XMM0, [EAX+28]
-		MOVSS [stepind], XMM0
-		prints msg
-		printss stepind
-		prints nl
+	mov		eax, [ebp+x]		; x
+	mov		ebx, [ebp+y]		; y
+	mov		ecx, [ebp+n]		; n
 
-		; ------------------------------------------------------------
-		; Sequenza di uscita dalla funzione
-		; ------------------------------------------------------------
+	;
+	; corpo della funzione
+	;
 
-		pop	edi		; ripristina i registri da preservare
-		pop	esi
-		pop	ebx
-		mov	esp, ebp	; ripristina lo Stack Pointer
-		pop	ebp		; ripristina il Base Pointer
-		ret			; torna alla funzione C chiamante
+	xorps	xmm0, xmm0		; ps = 0
+	mov 	esi, 0			; i = 0
+
+for_i:
+	mov 	edi, esi			; indTemp = i
+	add 	edi, p			; indTemp+=p
+	cmp 	edi, ecx			; (indTemp > n) ?
+	jg		for_i_scalar		; se vero passa a lavorare con scalari, anziché vettori
+
+	movaps	xmm1, [eax+esi*dim]	; x[i, ..., i+p-1]
+	mulps 	xmm1, [ebx+esi*dim]	; temp[i, ..., i+p-1] = x[i, ..., i+p-1] * y[i, ..., i+p-1]
+	addps	xmm0, xmm1			; ps[i, ..., i+p-1] += temp[i, ..., i+p-1]
+
+	add		esi, p			; i+=p
+	jmp		for_i
+
+for_i_scalar:
+	cmp		esi, ecx			; (i >= n) ?
+	jge		end
+
+	movss	xmm1, [eax+esi*dim]	; x[i]
+	mulss	xmm1, [ebx+esi*dim]	; temp[i] = x[i] * y[i]
+	addss	xmm0, xmm1			; ps[i, ..., i+p-1] += temp[i]
+
+	inc		esi				; i++
+	jmp		for_i_scalar
+
+end:
+	haddps	xmm0, xmm0		; effettuo le due somme orizzontali rimanenti
+	haddps	xmm0, xmm0
+
+	movss	[ris], xmm0		; *ris = ps
+
+	mov		eax, ris			; return ris
+
+	;
+	;	sequenza di uscita dalla funzione
+	;
+
+	pop		edi				; ripristina i registri da preservare
+	pop		esi
+	pop		ebx
+	mov		esp, ebp			; ripristina lo Stack Pointer
+	pop		ebp				; ripristina il Base Pointer
+	ret						; ritorna alla funzione chiamante

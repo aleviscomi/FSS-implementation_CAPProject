@@ -74,10 +74,10 @@ typedef struct {
 * 	di memoria, ma a scelta del candidato possono essere
 * 	memorizzate mediante array di array (float**).
 *
-* 	In entrambi i casi il candidato dovr� inoltre scegliere se memorizzare le
+* 	In entrambi i casi il candidato dovrï¿½ inoltre scegliere se memorizzare le
 * 	matrici per righe (row-major order) o per colonne (column major-order).
 *
-* 	L'assunzione corrente � che le matrici siano in row-major order.
+* 	L'assunzione corrente ï¿½ che le matrici siano in row-major order.
 *
 */
 
@@ -111,7 +111,7 @@ void dealloc_matrix(MATRIX mat) {
 * 	successivi N*M*4 byte: matrix data in row-major order --> numeri floating-point a precisione singola
 *
 *****************************************************************************
-*	Se lo si ritiene opportuno, � possibile cambiare la codifica in memoria
+*	Se lo si ritiene opportuno, ï¿½ possibile cambiare la codifica in memoria
 * 	della matrice.
 *****************************************************************************
 *
@@ -175,7 +175,7 @@ void save_data(char* filename, void* X, int n, int k) {
 
 // PROCEDURE ASSEMBLY
 
-extern void prova(params* input);
+extern type* prodottoScalare(VECTOR x, VECTOR y, int size);
 
 
 // FUNZIONI DI UTILITA'
@@ -196,15 +196,22 @@ type getRandom(params* input, int* randIndex, int from, int to) {
  */
 type function(VECTOR c, VECTOR x, int size) {
     int i;
-    type xQuad = 0;
-    type prodScal = 0;
+    type xQuad;
+    type cx;
+
     //calcolo x^2 e c o x
+    xQuad = *prodottoScalare(x, x, size);
+    cx = *prodottoScalare(c, x, size);
+
+/*     xQuad = 0;
+    cx = 0;
     for(i=0; i < size; i++) {
         xQuad += x[i] * x[i];
-        prodScal += c[i] * x[i];
-    }
+        cx += c[i] * x[i];
+    } */
 
-    return exp(xQuad) + xQuad - prodScal;
+
+    return exp(xQuad) + xQuad - cx;
 } //function
 
 /*
@@ -249,7 +256,7 @@ void individualMovement(params* input, int* randIndex, int i, VECTOR df, MATRIX 
     fy = function(input->c, y, input->d);
 
 
-    //se la nuova posizione è migliore allora mi sposto, altrimenti mantengo la precedente
+    //se la nuova posizione Ã¨ migliore allora mi sposto, altrimenti mantengo la precedente
     if(fy < fx) {
         df[i] = fy - fx;
         for(j=0; j<input->d; j++) {
@@ -271,10 +278,10 @@ void individualMovement(params* input, int* randIndex, int i, VECTOR df, MATRIX 
  * Funzione che aggiorna il peso di tutti i pesci nel caso in cui
  * questi si siano spostati in una posizione migliore (df<0).
  *
- * Se almeno un pesce aggiornerà il proprio peso, verrà settata
+ * Se almeno un pesce aggiornerÃ  il proprio peso, verrÃ  settata
  * a true la variabile booleana 'weightGain', per indicare che
- * il peso del banco è aumentato.
- * Ciò servirà per il movimento volitivo, per indicare se il banco
+ * il peso del banco Ã¨ aumentato.
+ * CiÃ² servirÃ  per il movimento volitivo, per indicare se il banco
  * debba contrarsi verso il baricentro, o meno
  */
 void feedOperator(params* input, VECTOR w, VECTOR df, bool* weightGain){
@@ -284,7 +291,7 @@ void feedOperator(params* input, VECTOR w, VECTOR df, bool* weightGain){
     dfmin = min(df, input->np);
 
     for(i=0; i < input->np; i++)
-        if(df[i] < 0) { //se il pesce i-esimo si avvicina al minimo, si è spostato e può mangiare
+        if(df[i] < 0) { //se il pesce i-esimo si avvicina al minimo, si Ã¨ spostato e puÃ² mangiare
             w[i] += df[i] / dfmin;
             *weightGain = true;
         }
@@ -294,7 +301,7 @@ void feedOperator(params* input, VECTOR w, VECTOR df, bool* weightGain){
 /*
  * Funzione che permette a tutti i pesci di essere attratti verso
  * i pesci che hanno avuto un miglioramento maggiore.
- * Se nessun pesce si è mosso (sumdf=0) i pesci rimangono tutti
+ * Se nessun pesce si Ã¨ mosso (sumdf=0) i pesci rimangono tutti
  * fermi.
  */
 void instinctiveMovement(params* input, MATRIX dx, VECTOR df) {
@@ -381,7 +388,7 @@ void volitiveMovement(params* input, int* randIndex, VECTOR b, bool weightGain){
             numerator[j] = (input->stepvol) * randNum * (input->x[i * input->d + j] - b[j]);
             numerator[j] /= dist;
 
-            //se il peso del banco è aumentato allora i pesci si contraggono verso il baricentro (segno -), altrimenti viceversa (segno +)
+            //se il peso del banco Ã¨ aumentato allora i pesci si contraggono verso il baricentro (segno -), altrimenti viceversa (segno +)
             if (weightGain)
                 input->x[i * input->d + j] -= numerator[j];
             else
@@ -406,7 +413,7 @@ void fss(params* input){
     VECTOR b;
     type stepindInit; //stepind iniziale
     type stepvolInit; //stepvol iniziale
-    bool weightGain; //booleano che vale true se il peso totale del banco è aumentato (cioè se almeno un pesce mangia)
+    bool weightGain; //booleano che vale true se il peso totale del banco Ã¨ aumentato (cioÃ¨ se almeno un pesce mangia)
     type min; //memorizza il min degli f(x) finali
     int minIndex; //memorizza l'indice del min degli f(x) finali
 
@@ -418,7 +425,7 @@ void fss(params* input){
     clock_t t5=0;
 
     /** inizializzazione */
-    // le posizioni dei pesci sono già inizializzate leggendo la matrice x32_x_x.ds2
+    // le posizioni dei pesci sono giÃ  inizializzate leggendo la matrice x32_x_x.ds2
     w = (VECTOR) alloc_matrix(1, input->np);
     df = (VECTOR) alloc_matrix(1, input->np);
     dx = alloc_matrix(input->np, input->d);
@@ -740,3 +747,4 @@ int main(int argc, char** argv) {
 
     return 0;
 } //main
+
