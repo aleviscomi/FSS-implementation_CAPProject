@@ -31,9 +31,10 @@
 
 section .data			; Sezione contenente dati inizializzati
 
+	dim	equ	4		; dimensione in byte di un singolo dato (4 se float, 8 se double)
+	p	equ	4		; grado di parallelismo SIMD (4 se float, 2 se double)
+
 section .bss			; Sezione contenente dati non inizializzati
-	alignb 16
-	ris	resd	1		; type* ris: puntatore utilizzato per i valori restituiti dalle funzioni
 
 section .text			; Sezione contenente il codice macchina
 
@@ -80,78 +81,154 @@ extern free_block
 
 global prodottoScalare
 
-	dim	equ	4		; dimensione in byte di un singolo dato (4 se float, 8 se double)
-	p	equ	4		; grado di parallelismo SIMD (4 se float, 2 se double)
-
-	x	equ	8		; puntatore al primo vettore
-	y	equ	12		; puntatore al secondo vettore
+	x	equ	8		; puntatore al vettore dei coefficienti
+	y	equ	12		; puntatore al vettore x
 	n	equ	16		; dimensione vettori
+	ris	equ	20		; puntatore alla variabile contenente il risultato
 
 prodottoScalare:
 	;
 	; sequenza di ingresso nella funzione
 	;
 
-	push	ebp				; salvo il Base Pointer
-	mov		ebp, esp			; il Base Pointer punta al record di attivazione corrente
-	push	ebx				; salvo i registri da preservare
-	push	esi
-	push	edi
+	PUSH	EBP				; salvo il Base Pointer
+	MOV	EBP, ESP			; il Base Pointer punta al record di attivazione corrente
+	PUSH	EBX				; salvo i registri da preservare
+	PUSH	ESI
+	PUSH	EDI
 
 	;
 	; lettura dei parametri dal record di attivazione
 	;
 
-	mov		eax, [ebp+x]		; x
-	mov		ebx, [ebp+y]		; y
-	mov		ecx, [ebp+n]		; n
+	MOV	EAX, [EBP+x]		; x
+	MOV	EBX, [EBP+y]		; y
+	MOV	ECX, [EBP+n]		; n
+	MOV	EDX, [EBP+ris]		; ris
 
 	;
 	; corpo della funzione
 	;
 
-	xorps	xmm0, xmm0		; ps = 0
-	mov 	esi, 0			; i = 0
+	XORPS	XMM0, XMM0		; ps = 0
+	MOV 	ESI, 0			; i = 0
 
 for_i:
-	mov 	edi, esi			; indTemp = i
-	add 	edi, p			; indTemp+=p
-	cmp 	edi, ecx			; (indTemp > n) ?
-	jg		for_i_scalar		; se vero passa a lavorare con scalari, anziché vettori
+	MOV 	EDI, ESI			; indTemp = i
+	ADD 	EDI, p			; indTemp+=p
+	CMP 	EDI, ECX			; (indTemp > n) ?
+	JG		for_i_scalar		; se vero passa a lavorare con scalari, anziché vettori
 
-	movaps	xmm1, [eax+esi*dim]	; x[i, ..., i+p-1]
-	mulps 	xmm1, [ebx+esi*dim]	; temp[i, ..., i+p-1] = x[i, ..., i+p-1] * y[i, ..., i+p-1]
-	addps	xmm0, xmm1			; ps[i, ..., i+p-1] += temp[i, ..., i+p-1]
+	MOVAPS	XMM1, [EAX+ESI*dim]	; x[i, ..., i+p-1]
+	MULPS 	XMM1, [EBX+ESI*dim]	; temp[i, ..., i+p-1] = x[i, ..., i+p-1] * y[i, ..., i+p-1]
+	ADDPS	XMM0, XMM1			; ps[i, ..., i+p-1] += temp[i, ..., i+p-1]
 
-	add		esi, p			; i+=p
-	jmp		for_i
+	ADD		ESI, p			; i+=p
+	JMP		for_i
 
 for_i_scalar:
-	cmp		esi, ecx			; (i >= n) ?
-	jge		end
+	CMP	ESI, ECX			; (i >= n) ?
+	JGE		end
 
-	movss	xmm1, [eax+esi*dim]	; x[i]
-	mulss	xmm1, [ebx+esi*dim]	; temp[i] = x[i] * y[i]
-	addss	xmm0, xmm1			; ps[i, ..., i+p-1] += temp[i]
+	MOVSS	XMM1, [EAX+ESI*dim]	; x[i]
+	MULSS	XMM1, [EBX+ESI*dim]	; temp[i] = x[i] * y[i]
+	ADDSS	XMM0, XMM1			; ps[i, ..., i+p-1] += temp[i]
 
-	inc		esi				; i++
-	jmp		for_i_scalar
+	INC		ESI				; i++
+	JMP		for_i_scalar
 
 end:
-	haddps	xmm0, xmm0		; effettuo le due somme orizzontali rimanenti
-	haddps	xmm0, xmm0
+	HADDPS	XMM0, XMM0		; effettuo le due somme orizzontali rimanenti
+	HADDPS	XMM0, XMM0
 
-	movss	[ris], xmm0		; *ris = ps
-
-	mov		eax, ris			; return ris
+	MOVSS	[EDX], XMM0		; *ris = ps
 
 	;
 	;	sequenza di uscita dalla funzione
 	;
 
-	pop		edi				; ripristina i registri da preservare
-	pop		esi
-	pop		ebx
-	mov		esp, ebp			; ripristina lo Stack Pointer
-	pop		ebp				; ripristina il Base Pointer
-	ret						; ritorna alla funzione chiamante
+	POP		EDI				; ripristina i registri da preservare
+	POP		ESI
+	POP		EBX
+	MOV	ESP, EBP			; ripristina lo Stack Pointer
+	POP		EBP				; ripristina il Base Pointer
+	RET						; ritorna alla funzione chiamante
+
+
+
+global distanzaEuclidea
+
+	v1	equ	8
+	v2 	equ	12
+	n	equ	16
+	ris	equ	20
+
+distanzaEuclidea:
+	;
+	; sequenza di ingresso nella funzione
+	;
+
+	PUSH	EBP
+	MOV	EBP, ESP
+	PUSH 	EBX
+	PUSH 	ESI
+	PUSH 	EDI
+
+	;
+	; lettura dei parametri dal record di attivazione
+	;
+
+	MOV	EAX, [EBP + v1]	; puntatore a v1
+	MOV	EBX, [EBP + v2]	; puntatore a v2
+	MOV	ECX, [EBP + n]	; n° elementi
+	MOV	EDX, [EBP + ris]	; puntatore alla variabile contenente il risultato
+
+	; INIZIALIZZAZIONI
+
+	XOR 	ESI, ESI				; i = 0
+	XORPS	XMM1, XMM1			; conterrà  le somme parziali (v1[i] - v2[i])^2
+
+
+	;
+	; corpo della funzione
+	;
+
+loopQ:
+	MOV 	EDI, ESI				; temp = i
+	ADD 	EDI, p				; temp += p		per controllare che siano presenti almeno p elementi nella prossima iterazione
+	CMP	EDI, ECX				; temp < n
+	JGE		loopR
+	MOVAPS	XMM0, [EAX + ESI*dim]	; XMM0 = v1[i ... i+p-1]
+	SUBPS	XMM0, [EBX + ESI*dim]	; XMM0 -= v2[i ... i+p-1]
+	MULPS	XMM0, XMM0			; XMM0 = XMM0^2
+	ADDPS	XMM1, XMM0			; XMM1 += XMM0
+	ADD		ESI, p				; i += p
+	JMP		loopQ
+
+loopR:
+	CMP	ESI, ECX				; i < n		gli elementi restanti in nÂ° < p
+	JGE		endLoop
+	MOVSS	XMM0, [EAX + ESI*dim]	; XMM0 = v1[i]
+	SUBSS	XMM0, [EBX + ESI*dim]	; XMM0 -= v2[i]
+	MULSS	XMM0, XMM0			; XMM0 = XMM0^2
+	ADDSS	XMM1, XMM0			; XMM1 += XMM0
+	INC		ESI					; i++
+	JMP		loopR
+
+endLoop:
+	HADDPS	XMM1, XMM1
+	HADDPS	XMM1, XMM1
+	SQRTSS	XMM1, XMM1
+
+	MOVSS	[EDX], XMM1			; *ris = XMM1
+
+	;
+	;	sequenza di uscita dalla funzione
+	;
+
+	POP		EDI
+	POP		ESI
+	POP		EBX
+	MOV	ESP, EBP
+	POP		EBP
+	RET
