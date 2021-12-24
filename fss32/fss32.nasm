@@ -36,6 +36,11 @@ section .data			; Sezione contenente dati inizializzati
 
 section .bss			; Sezione contenente dati non inizializzati
 
+	indirizzoMediaP		resd		1	; locazione di memoria utile per la procedura mediaPesata
+	input_nx			resd		1	; locazione che conterrà le righe della matrice (usata in mediaPesata)
+	input_d			resd		1	; locazione che conterrà le colonne della matrice (usata in mediaPesata)
+	sommaV			resd		1	; locazione che conterrà la sommatoria degli elementi del vettore vect (usata in mediaPesata)
+
 section .text			; Sezione contenente il codice macchina
 
 
@@ -79,6 +84,11 @@ extern free_block
 ; Funzioni
 ; ------------------------------------------------------------
 
+
+;
+; procedura di calcolo del prodotto scalare
+;
+
 global prodottoScalare
 
 	x	equ	8		; puntatore al vettore dei coefficienti
@@ -111,7 +121,7 @@ prodottoScalare:
 	;
 
 	XORPS	XMM0, XMM0		; ps = 0
-	MOV 	ESI, 0			; i = 0
+	XOR 	ESI, ESI			; i = 0
 
 for_i:
 	MOV 	EDI, ESI			; indTemp = i
@@ -155,6 +165,10 @@ end:
 	RET						; ritorna alla funzione chiamante
 
 
+
+;
+; procedura di calcolo della distanza euclidea
+;
 
 global distanzaEuclidea
 
@@ -232,3 +246,145 @@ endLoop:
 	MOV	ESP, EBP
 	POP		EBP
 	RET
+
+
+
+;
+; procedura di calcolo della media pesata
+;
+
+global mediaPesata
+
+	input	equ	8		; puntatore al vettore dei parametri
+	matrix	equ	12		; puntatore alla matrice
+	vect		equ	16		; puntatore al vettore vect
+	mediaP	equ	20		; puntatore al vettore contenente il risultato
+	sumVect	equ	24		; contiene la somma degli elementi di vect
+
+mediaPesata:
+	;
+	; sequenza di ingresso nella funzione
+	;
+
+	PUSH	EBP				; salvo il Base Pointer
+	MOV	EBP, ESP			; il Base Pointer punta al record di attivazione corrente
+	PUSH	ESP
+	PUSH	EBX				; salvo i registri da preservare
+	PUSH	ESI
+	PUSH	EDI
+
+	;
+	; lettura dei parametri dal record di attivazione
+	;
+
+	MOV 	EAX, [EBP+input]	; indirizzo della struttura contenente i parametri
+			; [EAX]	input->x
+			; [EAX + 4] input->xh
+			; [EAX + 8] input->c
+			; [EAX + 12] input->r
+			; [EAX + 16] input->nx
+			; [EAX + 20] input->d
+			; [EAX + 24] input->iter
+			; [EAX + 28] input->stepind
+			; [EAX + 32] input->stepvol
+			; [EAX + 36] input->wscale
+
+	MOV	ECX, [EAX+16]	; memorizzo il numero di righe della matrice (nx)
+	MOV	[input_nx], ECX
+
+	MOV	EDX, [EAX+20]	; memorizzo il numero di colonne della matrice (d)
+	MOV	[input_d], EDX
+
+	MOV	EAX, [EBP+matrix]	; indirizzo del primo elemento della matrice
+
+	MOV	EBX, [EBP+vect]	; indirizzo di vect
+
+	MOV	ECX, [EBP+mediaP]		; memorizzo l'indirizzo di mediaP in memoria per usarlo dopo
+	MOV	[indirizzoMediaP], ECX	; è necessario ciò perché dopo uso EBP e quindi non potrò più
+								; accederci con [EBP+mediaP]
+
+	MOV	ECX, [EBP+sumVect]	; memorizzo sumVect in quanto perdendo dopo EBP
+	MOV	[sommaV], ECX		; non ci potrei più accedere
+
+	;
+	; corpo della funzione
+
+	MOV	EBP, 0		; i = 0
+for_i2:
+	IMUL	ESI, EBP, dim		; i*dim
+	IMUL	ESI, [input_d]		; i*d*dim
+
+	CMP	EBP, [input_nx]	; (i<nx) ?
+	JGE		end2
+
+	MOV	ECX, 0			; j = 0
+for_j2:
+	ADD		ECX, p
+	CMP	ECX, [input_d]		; (j<d) ?
+	JG		end_for_j2
+	SUB		ECX, p
+
+	IMUL	EDI, ECX, dim		; j*dim
+
+	MOV	EDX, ESI			; i*d*dim
+	ADD		EDX, EDI			; i*d*dim + j*dim
+
+	MOVAPS	XMM0, [EAX + EDX]	; matrix[i][j, ..., j+p-1]
+	MOVSS	XMM1, [EBX+EBP*dim]	; v[i]
+	SHUFPS 	XMM1, XMM1, 0		; v[i, ..., i+p-1] = v[i]
+	MULPS	XMM0, XMM1			; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1]
+	MOVSS	XMM1, [sommaV]		; sumV
+	SHUFPS 	XMM1, XMM1, 0		; sumV[i, ..., i+p-1] = sumV
+	DIVPS	XMM0, XMM1			; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
+
+	MOV	EDX, [indirizzoMediaP]	; indirizzo di mediaP
+	ADDPS	XMM0, [EDX+EDI] 		; mediaP[j, ..., j+p-1] = matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
+	MOVAPS	[EDX+EDI], XMM0
+
+	ADD		ECX, p
+	JMP		for_j2
+
+end_for_j2:
+	SUB		ECX, p
+
+for_j_scalar2:
+	CMP	ECX, [input_d]
+	JGE		update_for_i2
+
+	IMUL	EDI, ECX, dim		; j*dim
+
+	MOV	EDX, ESI			; i*d*dim
+	ADD		EDX, EDI			; i*d*dim + j*dim
+
+	MOVSS	XMM0, [EAX + EDX]	; matrix[i][j]
+	MOVSS	XMM1, [EBX+EBP*dim]	; v[i]
+	MULSS	XMM0, XMM1			; matrix[i][j] * v[i]
+	DIVSS	XMM0, [sommaV]		; matrix[i][j] * v[i] / sumV
+
+	MOV	EDX, [indirizzoMediaP]	; indirizzo di mediaP
+	ADDSS	XMM0, [EDX+EDI] 		; mediaP[j] = matrix[i][j] * v[i] / sumV
+	MOVSS	[EDX+EDI], XMM0
+
+	INC		ECX
+	JMP		for_j_scalar2
+
+update_for_i2:
+	INC		EBP
+	JMP		for_i2
+
+end2:
+	; a questo punto in mediaP è stato già messo il risultato e posso quindi terminare
+
+
+	;
+	;	sequenza di uscita dalla funzione
+	;
+
+	POP		EDI				; ripristina i registri da preservare
+	POP		ESI
+	POP		EBX
+	POP		ESP				; ripristina lo Stack Pointer
+	POP		EBP				; ripristina il Base Pointer
+	RET
+
+
