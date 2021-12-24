@@ -178,6 +178,7 @@ void save_data(char* filename, void* X, int n, int k) {
 extern void prodottoScalare(VECTOR x, VECTOR y, int size, type* ps);
 extern void distanzaEuclidea(type* v1, type* v2, int dim, type* dist);
 extern void mediaPesata(params* input, MATRIX matrix, VECTOR vect, VECTOR mediaP, type sumVect);
+extern void sommaVettoreMatrice(params* input, MATRIX matrix, VECTOR vect);
 
 
 // FUNZIONI DI UTILITA'
@@ -325,17 +326,23 @@ void instinctiveMovement(params* input, MATRIX dx, VECTOR df) {
     if(sumdf != 0)
         mediaPesata(input, dx, df, vectI, sumdf);
 
+    //sommo I ai vettori x[i] (in assembly)
+    sommaVettoreMatrice(input, input->x, vectI);
+
+
+
     //calcolo I (in C)
 /* 	if(sumdf != 0)
 		for(i=0; i < input->np; i++)
 			for(j=0; j < input->d; j++)
 				vectI[j] += dx[input->d * i + j] * df[i] / sumdf; */
 
-
-    //sommo I ai vettori x[i]
-    for(i=0; i < input->np; i++)
+    //sommo I ai vettori x[i] (in C)
+/*     for(i=0; i < input->np; i++)
         for(j=0; j < input->d; j++)
-            input->x[input->d * i + j] += vectI[j];
+            input->x[input->d * i + j] += vectI[j]; */
+
+
 
     dealloc_matrix(vectI);
 } //instinctiveMovement

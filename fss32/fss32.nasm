@@ -37,9 +37,9 @@ section .data			; Sezione contenente dati inizializzati
 section .bss			; Sezione contenente dati non inizializzati
 
 	indirizzoMediaP		resd		1	; locazione di memoria utile per la procedura mediaPesata
-	input_nx			resd		1	; locazione che conterrà le righe della matrice (usata in mediaPesata)
-	input_d			resd		1	; locazione che conterrà le colonne della matrice (usata in mediaPesata)
 	sommaV			resd		1	; locazione che conterrà la sommatoria degli elementi del vettore vect (usata in mediaPesata)
+	input_nx			resd		1	; locazione che conterrà le righe della matrice
+	input_d			resd		1	; locazione che conterrà le colonne della matrice
 
 section .text			; Sezione contenente il codice macchina
 
@@ -268,8 +268,8 @@ mediaPesata:
 
 	PUSH	EBP				; salvo il Base Pointer
 	MOV	EBP, ESP			; il Base Pointer punta al record di attivazione corrente
-	PUSH	ESP
-	PUSH	EBX				; salvo i registri da preservare
+	PUSH	ESP				; salvo i registri da preservare
+	PUSH	EBX
 	PUSH	ESI
 	PUSH	EDI
 
@@ -289,11 +289,11 @@ mediaPesata:
 			; [EAX + 32] input->stepvol
 			; [EAX + 36] input->wscale
 
-	MOV	ECX, [EAX+16]	; memorizzo il numero di righe della matrice (nx)
-	MOV	[input_nx], ECX
+	MOV	EBX, [EAX+16]	; memorizzo il numero di righe della matrice (nx)
+	MOV	[input_nx], EBX
 
-	MOV	EDX, [EAX+20]	; memorizzo il numero di colonne della matrice (d)
-	MOV	[input_d], EDX
+	MOV	EBX, [EAX+20]	; memorizzo il numero di colonne della matrice (d)
+	MOV	[input_d], EBX
 
 	MOV	EAX, [EBP+matrix]	; indirizzo del primo elemento della matrice
 
@@ -388,3 +388,123 @@ end2:
 	RET
 
 
+
+
+;
+; procedura che somma un vettore ad ogni riga di una matrice (aggiornando la matrice)
+;
+
+global sommaVettoreMatrice
+
+	input	equ	8		; puntatore al vettore dei parametri
+	matrix	equ	12		; puntatore alla matrice
+	vect		equ	16		; puntatore al vettore vect
+
+sommaVettoreMatrice:
+	;
+	; sequenza di ingresso nella funzione
+	;
+
+	PUSH	EBP				; salvo il Base Pointer
+	MOV	EBP, ESP			; il Base Pointer punta al record di attivazione corrente
+	PUSH	ESP				; salvo i registri da preservare
+	PUSH	EBX
+	PUSH	ESI
+	PUSH	EDI
+
+	;
+	; lettura dei parametri dal record di attivazione
+	;
+
+	MOV 	EAX, [EBP+input]	; indirizzo della struttura contenente i parametri
+			; [EAX]	input->x
+			; [EAX + 4] input->xh
+			; [EAX + 8] input->c
+			; [EAX + 12] input->r
+			; [EAX + 16] input->nx
+			; [EAX + 20] input->d
+			; [EAX + 24] input->iter
+			; [EAX + 28] input->stepind
+			; [EAX + 32] input->stepvol
+			; [EAX + 36] input->wscale
+
+	MOV	EBX, [EAX+16]	; memorizzo il numero di righe della matrice (nx)
+	MOV	[input_nx], EBX
+
+	MOV	EBX, [EAX+20]	; memorizzo il numero di colonne della matrice (d)
+	MOV	[input_d], EBX
+
+
+	MOV	EAX, [EBP+matrix]	; indirizzo del primo elemento della matrice
+
+	MOV	EBX, [EBP+vect]	; indirizzo di vect
+
+	;
+	; corpo della funzione
+	;
+
+	MOV	EBP, 0			; i = 0
+for_i3:
+	IMUL	ESI, EBP, dim		; i*dim
+	IMUL	ESI, [input_d]		; i*d*dim
+
+	CMP	EBP, [input_nx]	; (i<nx) ?
+	JGE		end3
+
+	MOV	ECX, 0			; j = 0
+for_j3:
+	ADD		ECX, p
+	CMP	ECX, [input_d]		; (j<d) ?
+	JG		end_for_j3
+	SUB		ECX, p
+
+	IMUL	EDI, ECX, dim		; j*dim
+
+	MOV	EDX, ESI			; i*d*dim
+	ADD		EDX, EDI			; i*d*dim + j*dim
+
+	MOVAPS	XMM0, [EAX + EDX]	; matrix[i][j, ..., j+p-1]
+	MOVAPS	XMM1, [EBX+ECX*dim]	; v[j, ..., j+p-1]
+	ADDPS	XMM0, XMM1			; matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
+	MOVAPS	[EAX + EDX], XMM0	; matrix[i][j, ..., j+p-1]  = matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
+
+	ADD		ECX, p
+	JMP		for_j3
+
+end_for_j3:
+	SUB		ECX, p
+
+for_j_scalar3:
+	CMP	ECX, [input_d]
+	JGE		update_for_i3
+
+	IMUL	EDI, ECX, dim		; j*dim
+
+	MOV	EDX, ESI			; i*d*dim
+	ADD		EDX, EDI			; i*d*dim + j*dim
+
+	MOVSS	XMM0, [EAX + EDX]	; matrix[i][j]
+	MOVSS	XMM1, [EBX+ECX*dim]	; v[j]
+	ADDSS	XMM0, XMM1			; matrix[i][j] + v[j]
+	MOVSS	[EAX + EDX], XMM0	; matrix[i][j]  = matrix[i][j] + v[j]
+
+	INC		ECX
+	JMP		for_j_scalar3
+
+update_for_i3:
+	INC		EBP
+	JMP		for_i3
+
+end3:
+	; a questo punto la matrice è stata già modificata e posso terminare
+
+	;
+	;	sequenza di uscita dalla funzione
+	;
+
+	POP		EDI				; ripristina i registri da preservare
+	POP		ESI
+	POP		EBX
+	POP		ESP				; ripristina lo Stack Pointer
+	POP		EBP				; ripristina il Base Pointer
+	RET						; ritorna alla funzione chiamante
