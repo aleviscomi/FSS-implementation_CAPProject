@@ -741,7 +741,6 @@ end5:
 	RET						; ritorna alla funzione chiamante
 
 
-
 ;
 ; procedura che lascia il pesce i-esimo nella sua posizione (dx[i][j]=0)
 ;
@@ -825,3 +824,155 @@ end6:
 	MOV	ESP, EBP			; ripristina lo Stack Pointer
 	POP		EBP				; ripristina il Base Pointer
 	RET						; ritorna alla funzione chiamante
+
+
+
+
+;
+; procedura che esegue il movimento volitivo per tutti i pesci
+;
+
+global faiMovimentoVolitivo
+
+	input				equ	8
+	b						equ	12
+	distEuclidea		equ	16
+	randNum			equ	20
+	weightGain		equ	24
+	i4						equ	28
+
+
+faiMovimentoVolitivo:
+
+	;
+	; sequenza di ingresso nella funzione
+	;
+
+	PUSH	EBP					; salvo il Base Pointer
+	MOV	EBP, ESP			; il Base Pointer punta al record di attivazione corrente
+	PUSH	EBX					; salvo i registri da preservare
+	PUSH	ESI
+	PUSH	EDI
+
+	;
+	; lettura dei parametri dal record di attivazione
+	;
+
+
+	MOV 	EAX, [EBP+input]	; indirizzo della struttura contenente i parametri
+			; [EAX]	input->x
+			; [EAX + 4] input->xh
+			; [EAX + 8] input->c
+			; [EAX + 12] input->r
+			; [EAX + 16] input->nx
+			; [EAX + 20] input->d
+			; [EAX + 24] input->iter
+			; [EAX + 28] input->stepind
+			; [EAX + 32] input->stepvol
+			; [EAX + 36] input->wscale
+
+	MOV	EBX, [EAX]				; indirizzo della matrice x
+
+	MOV	ECX, [EBP+b]			; indirizzo del vettore B
+
+	;
+	; corpo della funzione
+	;
+
+	XOR			EDI, EDI				; j = 0
+for_j7:
+	ADD			EDI, p
+	CMP		EDI, [EAX+20]		; (j<d) ?
+	JG			end_for_j7
+	SUB			EDI, p
+
+	MOV		ESI, [EBP+i4]		; i
+	IMUL		ESI, [EAX+20]		; i*d
+	ADD			ESI, EDI				; i*d + j
+	IMUL		ESI, ESI, dim		; i*d*dim + j*dim
+
+	MOVAPS	XMM0, [EBX+ESI]			; x[i*d+j]
+	MOVAPS	XMM1, [ECX+EDI*dim]	; B[j]
+	SUBPS		XMM0, XMM1					; x[i*d+j] - B[j]
+
+	MOVSS		XMM1, [EBP+randNum]	; randNum
+	SHUFPS	XMM1, XMM1, 0				; randNum[j, ..., j+p-1]
+	MULPS		XMM0, XMM1					; (x[i*d+j]-B[j])*randNum
+
+	MOVSS 	XMM1, [EAX+32]			; stepvol
+	SHUFPS	XMM1, XMM1, 0				; stepvol[j, ..., j+p-1]
+	MULPS		XMM0, XMM1					; (x[i*d+j]-B[j])*randNum*stepvol
+
+	MOVSS		XMM1, [EBP+distEuclidea]			; dist
+	SHUFPS	XMM1, XMM1, 0				; dist[j, ..., j+p-1]
+	DIVPS		XMM0, XMM1					; (x[i*d+j]-B[j])*randNum*stepvol / dist (= numerator)
+
+
+	MOV		EDX, [EBP+weightGain]
+	CMP		EDX, 0								; if (weightGain)
+	JE				false
+	MOVAPS	XMM1, [EBX+ESI]			; x[i*d+j]
+	SUBPS		XMM1, XMM0					; x[i*d+j] - numerator
+	MOVAPS	[EBX+ESI], XMM1			; x[i*d+j] = x[i*d+j] - numerator
+	JMP			end_false
+false:
+	MOVAPS	XMM1, [EBX+ESI]			; x[i*d+j]
+	ADDPS		XMM1, XMM0					; x[i*d+j] + numerator
+	MOVAPS	[EBX+ESI], XMM1			; x[i*d+j] = x[i*d+j] - numerator
+end_false:
+
+	ADD			EDI, p
+	JMP			for_j7
+
+end_for_j7:
+	SUB			EDI, p
+
+for_j_scalar7:
+	CMP		EDI, [EAX+20]
+	JGE			end7
+
+	MOV		ESI, [EBP+i4]					; i
+	IMUL		ESI, [EAX+20]					; i*d
+	ADD			ESI, EDI							; i*d + j
+	IMUL		ESI, ESI, dim					; i*d*dim + j*dim
+
+	MOVSS		XMM0, [EBX+ESI]			; x[i*d+j]
+	MOVSS		XMM1, [ECX+EDI*dim]	; B[j]
+	SUBSS		XMM0, XMM1					; x[i*d+j] - B[j]
+
+	MULSS		XMM0, [EBP+randNum]	; (x[i*d+j]-B[j])*randNum
+
+	MULSS 	XMM0, [EAX+32]			; (x[i*d+j]-B[j])*randNum*stepvol
+
+	DIVSS		XMM0, [EBP+distEuclidea]			; (x[i*d+j]-B[j])*randNum*stepvol / dist (= numerator)
+
+	MOV		EDX, [EBP+weightGain]
+	CMP		EDX, 0								; if (weightGain)
+	JE				false2
+	MOVSS		XMM1, [EBX+ESI]			; x[i*d+j]
+	SUBSS		XMM1, XMM0					; x[i*d+j] - numerator
+	MOVSS		[EBX+ESI], XMM1			; x[i*d+j] = x[i*d+j] - numerator
+	JMP			end_false2
+false2:
+	MOVSS		XMM1, [EBX+ESI]			; x[i*d+j]
+	ADDSS		XMM1, XMM0					; x[i*d+j] + numerator
+	MOVSS		[EBX+ESI], XMM1			; x[i*d+j] = x[i*d+j] - numerator
+end_false2:
+
+	INC			EDI
+	JMP			for_j_scalar7
+
+end7:
+	; a questo punto posso terminare
+
+	;
+	;	sequenza di uscita dalla funzione
+	;
+
+	POP		EDI				; ripristina i registri da preservare
+	POP		ESI
+	POP		EBX
+	MOV	ESP, EBP			; ripristina lo Stack Pointer
+	POP		EBP				; ripristina il Base Pointer
+	RET						; ritorna alla funzione chiamante
+

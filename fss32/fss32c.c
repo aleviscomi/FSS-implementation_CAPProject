@@ -182,6 +182,7 @@ extern void sommaVettoreMatrice(params* input, MATRIX matrix, VECTOR vect);
 extern void generaPossibileMovimento(params* input, int* randIndex, int i, VECTOR y);
 extern void muoviPesce(MATRIX x, VECTOR y, MATRIX dx, int i, int d);
 extern void mantieniPosizionePesce(MATRIX dx, int i, int d);
+extern void faiMovimentoVolitivo(params* input, VECTOR b, type dist, type randNum, bool weightGain, int i);
 
 
 // FUNZIONI DI UTILITA'
@@ -417,16 +418,19 @@ void volitiveMovement(params* input, int* randIndex, VECTOR b, bool weightGain){
         distanzaEuclidea(&input->x[i * input->d], b, input->d, &dist);
 
         //calcolo della distanza euclidea: sqrt(sum(((B[j]) - (x[i][j]))^2)) (in C)
-/*         for(j=0; j<input->d; j++)
- *             dist += (b[j] - input->x[i * input->d + j]) * (b[j] - input->x[i * input->d + j]);
- *         dist = sqrt(dist);
- */
+        /*for(j=0; j<input->d; j++)
+            dist += (b[j] - input->x[i * input->d + j]) * (b[j] - input->x[i * input->d + j]);
+        dist = sqrt(dist);*/
+
 
         //nel caso in cui il vettore Xi e B sono uguali (dunque distEuclidea=0) non sommo nulla ad Xi, per cui posso passare al movimento volitivo del prossimo pesce
         if(dist==0) continue;
 
-        //calcolo del movimento per ogni coordinata del pesce i-esimo
-        for(j=0; j<input->d; j++) {
+        //calcolo del movimento per ogni coordinata del pesce i-esimo (in assembly)
+        faiMovimentoVolitivo(input, b, dist, randNum, weightGain, i);
+
+        //calcolo del movimento per ogni coordinata del pesce i-esimo (in C)
+        /*for(j=0; j<input->d; j++) {
             //(stepvol * rand(0,1) * (x[i][j] - B[j])) / (distanzaEuclidea)
             numerator[j] = (input->stepvol) * randNum * (input->x[i * input->d + j] - b[j]);
             numerator[j] /= dist;
@@ -436,7 +440,7 @@ void volitiveMovement(params* input, int* randIndex, VECTOR b, bool weightGain){
                 input->x[i * input->d + j] -= numerator[j];
             else
                 input->x[i * input->d + j] += numerator[j];
-        }
+        }*/
     }
 
     dealloc_matrix(numerator);
