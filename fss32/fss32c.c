@@ -179,6 +179,7 @@ extern void prodottoScalare(VECTOR x, VECTOR y, int size, type* ps);
 extern void distanzaEuclidea(type* v1, type* v2, int dim, type* dist);
 extern void mediaPesata(params* input, MATRIX matrix, VECTOR vect, VECTOR mediaP, type sumVect);
 extern void sommaVettoreMatrice(params* input, MATRIX matrix, VECTOR vect);
+extern void generaPossibileMovimento(params* input, int* randIndex, int i, VECTOR y);
 
 
 // FUNZIONI DI UTILITA'
@@ -252,8 +253,13 @@ void individualMovement(params* input, int* randIndex, int i, VECTOR df, MATRIX 
     y = (VECTOR) alloc_matrix(1, input->d);
 
     //calcolo la possibile variazione di posizione del pesce i-esimo, come: y[j] = x[i][j] + rand(-1, 1) * stepind
-    for(j=0; j<input->d; j++)
-        y[j] = input->x[input->d * i + j] + getRandom(input, randIndex, -1, 1) * input->stepind;
+    //(in assembly)
+    generaPossibileMovimento(input, randIndex, i, y);
+
+    //calcolo la possibile variazione di posizione del pesce i-esimo, come: y[j] = x[i][j] + rand(-1, 1) * stepind
+    //(in C)
+    //for(j=0; j<input->d; j++)
+    //	y[j] = input->x[input->d * i + j] + getRandom(input, randIndex, -1, 1) * input->stepind;
 
     //calcolo i valori di funzione con x e y
     fx = function(input->c, &input->x[input->d * i], input->d);
