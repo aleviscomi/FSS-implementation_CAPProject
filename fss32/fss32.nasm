@@ -558,7 +558,7 @@ generaPossibileMovimento:
 	MOV	EBX, [EAX]				; indirizzo del primo elemento della matrice
 
 	MOV	EDX, [EBP+randIndex]		; indirizzo dell'indice dei numeri random
-	MOV	ECX, [EDX]
+	MOV	ECX, [EDX]				; indice dei numeri random
 
 	;
 	; corpo della funzione
@@ -631,6 +631,189 @@ end4:
 	MOV	EDX, [EBP+randIndex]		; aggiorno randIndex
 	MOV	[EDX], ECX
 	; a questo punto y è stato già modificato e posso terminare
+
+	;
+	;	sequenza di uscita dalla funzione
+	;
+
+	POP		EDI				; ripristina i registri da preservare
+	POP		ESI
+	POP		EBX
+	MOV	ESP, EBP			; ripristina lo Stack Pointer
+	POP		EBP				; ripristina il Base Pointer
+	RET						; ritorna alla funzione chiamante
+
+
+
+
+;
+; procedura che muove il pesce i-esimo nella nuova posizione y (aggiornando dx)
+;
+
+global muoviPesce
+
+	x					equ	8				; puntatore al vettore dei parametri
+	y2				equ	12	; puntatore al vettore delle possibili nuove posizioni
+	deltaX			equ	16	; puntatore alla matrice delle variazioni di posizione
+	i2					equ	20	; indice del pesce i-esimo
+	d					equ	24	; input->d
+
+muoviPesce:
+
+	;
+	; sequenza di ingresso nella funzione
+	;
+
+	PUSH	EBP					; salvo il Base Pointer
+	MOV	EBP, ESP			; il Base Pointer punta al record di attivazione corrente
+	PUSH	EBX					; salvo i registri da preservare
+	PUSH	ESI
+	PUSH	EDI
+
+	;
+	; lettura dei parametri dal record di attivazione
+	;
+
+	MOV	EAX, [EBP+x]				; matrice x
+	MOV	EBX, [EBP+y2]				; vettore y
+	MOV	ECX, [EBP+deltaX]		; matrice dx
+
+	;
+	; corpo della funzione
+	;
+
+	XOR		EDI, EDI					; j = 0
+for_j5:
+	ADD		EDI, p
+	CMP	EDI, [EBP+d]		; (j<d) ?
+	JG		end_for_j5
+	SUB		EDI, p
+
+	MOVAPS	XMM0, [EBX+EDI*dim]	; y[j, ..., j+p-1]
+	MOVAPS	XMM2, XMM0					; copio y[j, ..., j+p-1] per salvarlo in x e non rientrare in memoria
+	MOV		ESI, [EBP+i2]					; i
+	IMUL		ESI, [EBP+d]					; i*d
+	ADD			ESI, EDI							; i*d + j
+	IMUL		ESI, ESI, dim					; i*d*dim + j*dim
+	MOVAPS	XMM1, [EAX+ESI]			; input->x[i*d*dim + j*dim]
+	SUBPS		XMM0, XMM1					; y[j, ..., j+p-1] - input->x[i*d*dim + j*dim]
+
+	MOVAPS	[ECX+ESI], XMM0			; dx[i*d*dim+j*dim] = y[j, ..., j+p-1] - input->x[i*d*dim + j*dim]
+	MOVAPS	[EAX+ESI], XMM2			; input->x[i*d*dim + j*dim] = y[j, ..., j+p-1]
+
+	ADD		EDI, p
+	JMP		for_j5
+
+end_for_j5:
+	SUB		EDI, p
+
+for_j_scalar5:
+	CMP	EDI, [EBP+d]
+	JGE		end5
+
+	MOVSS		XMM0, [EBX+EDI*dim]	; y[j]
+	MOVSS		XMM2, XMM0					; copio y[j] per salvarlo in x e non rientrare in memoria
+	MOV		ESI, [EBP+i2]					; i
+	IMUL		ESI, [EBP+d]					; i*d
+	ADD			ESI, EDI							; i*d + j
+	IMUL		ESI, ESI, dim					; i*d*dim + j*dim
+	MOVSS		XMM1, [EAX+ESI]			; input->x[i*d*dim + j*dim]
+	SUBSS		XMM0, XMM1					; y[j] - input->x[i*d*dim + j*dim]
+
+	MOVSS		[ECX+ESI], XMM0			; dx[i*d*dim+j*dim] = y[j] - input->x[i*d*dim + j*dim]
+	MOVSS		[EAX+ESI], XMM2			; input->x[i*d*dim + j*dim] = y[j]
+
+	INC			EDI
+	JMP			for_j_scalar5
+
+end5:
+	; a questo punto dx e x sono stati già modificati e posso terminare
+
+	;
+	;	sequenza di uscita dalla funzione
+	;
+
+	POP		EDI				; ripristina i registri da preservare
+	POP		ESI
+	POP		EBX
+	MOV	ESP, EBP			; ripristina lo Stack Pointer
+	POP		EBP				; ripristina il Base Pointer
+	RET						; ritorna alla funzione chiamante
+
+
+
+;
+; procedura che lascia il pesce i-esimo nella sua posizione (dx[i][j]=0)
+;
+
+global mantieniPosizionePesce
+
+	align 16
+	zero				dd	0.0, 0.0, 0.0, 0.0		; 0
+
+	deltaX2		equ	8		; puntatore alla matrice delle variazioni di posizione
+	i3					equ	12	; indice del pesce i-esimo
+	d2				equ	16	; input->d
+
+
+mantieniPosizionePesce:
+
+	;
+	; sequenza di ingresso nella funzione
+	;
+
+	PUSH	EBP					; salvo il Base Pointer
+	MOV	EBP, ESP			; il Base Pointer punta al record di attivazione corrente
+	PUSH	EBX					; salvo i registri da preservare
+	PUSH	ESI
+	PUSH	EDI
+
+	;
+	; lettura dei parametri dal record di attivazione
+	;
+
+	MOV	EAX, [EBP+deltaX2]		; matrice dx
+
+	;
+	; corpo della funzione
+	;
+
+	XOR		EDI, EDI					; j = 0
+for_j6:
+	ADD		EDI, p
+	CMP	EDI, [EBP+d2]		; (j<d) ?
+	JG		end_for_j6
+	SUB		EDI, p
+
+	MOV		ESI, [EBP+i3]					; i
+	IMUL		ESI, [EBP+d2]					; i*d
+	ADD			ESI, EDI							; i*d + j
+	IMUL		ESI, ESI, dim					; i*d*dim + j*dim
+	MOVAPS	XMM0, [zero]					; 0
+	MOVAPS	[EAX+ESI], XMM0			; dx[i*d*dim + j*dim] = 0
+
+	ADD			EDI, p
+	JMP			for_j6
+
+end_for_j6:
+	SUB			EDI, p
+
+for_j_scalar6:
+	CMP		EDI, [EBP+d2]
+	JGE			end6
+
+	MOV		ESI, [EBP+i3]					; i
+	IMUL		ESI, [EBP+d2]					; i*d
+	ADD			ESI, EDI							; i*d + j
+	IMUL		ESI, ESI, dim					; i*d*dim + j*dim
+	MOVSS		XMM0, [zero]					; 0
+	MOVSS		[EAX+ESI], XMM0			; dx[i*d*dim + j*dim] = 0
+
+	INC			EDI
+	JMP			for_j_scalar6
+
+end6:
+	; a questo punto dx e x sono stati già modificati e posso terminare
 
 	;
 	;	sequenza di uscita dalla funzione

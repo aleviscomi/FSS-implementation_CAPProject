@@ -180,6 +180,8 @@ extern void distanzaEuclidea(type* v1, type* v2, int dim, type* dist);
 extern void mediaPesata(params* input, MATRIX matrix, VECTOR vect, VECTOR mediaP, type sumVect);
 extern void sommaVettoreMatrice(params* input, MATRIX matrix, VECTOR vect);
 extern void generaPossibileMovimento(params* input, int* randIndex, int i, VECTOR y);
+extern void muoviPesce(MATRIX x, VECTOR y, MATRIX dx, int i, int d);
+extern void mantieniPosizionePesce(MATRIX dx, int i, int d);
 
 
 // FUNZIONI DI UTILITA'
@@ -266,8 +268,18 @@ void individualMovement(params* input, int* randIndex, int i, VECTOR df, MATRIX 
     fy = function(input->c, y, input->d);
 
 
-    //se la nuova posizione è migliore allora mi sposto, altrimenti mantengo la precedente
+    //se la nuova posizione è migliore allora mi sposto, altrimenti mantengo la precedente (in assembly)
     if(fy < fx) {
+        df[i] = fy - fx;
+        muoviPesce(input->x, y, dx, i, input->d);
+    }
+    else {
+        df[i] = 0;
+        mantieniPosizionePesce(dx, i, input->d);
+    }
+
+    //se la nuova posizione è migliore allora mi sposto, altrimenti mantengo la precedente (in C)
+    /*if(fy < fx) {
         df[i] = fy - fx;
         for(j=0; j<input->d; j++) {
             dx[input->d * i + j] = y[j] - input->x[input->d * i + j];
@@ -278,7 +290,7 @@ void individualMovement(params* input, int* randIndex, int i, VECTOR df, MATRIX 
         df[i] = 0;
         for (j = 0; j < input->d; j++)
             dx[input->d * i + j] = 0;
-    }
+    }*/
 
     dealloc_matrix(y);
 } //individualMovement
