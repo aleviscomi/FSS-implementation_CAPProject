@@ -947,3 +947,95 @@ faiMovimentoVolitivo:
 	POP		EBP				; ripristina il Base Pointer
 	RET						; ritorna alla funzione chiamante
 
+
+
+;
+; procedura che preso un vettore ne somma gli elementi
+;
+
+global sommaElementiVettore
+
+	input		equ		8
+	v			equ		12
+	sumV	equ		16
+
+
+sommaElementiVettore:
+
+	;
+	; sequenza di ingresso nella funzione
+	;
+
+	PUSH	EBP					; salvo il Base Pointer
+	MOV	EBP, ESP			; il Base Pointer punta al record di attivazione corrente
+	PUSH	EBX					; salvo i registri da preservare
+	PUSH	ESI
+	PUSH	EDI
+
+	;
+	; lettura dei parametri dal record di attivazione
+	;
+
+	MOV 	EAX, [EBP+input]	; indirizzo della struttura contenente i parametri
+			; [EAX]	input->x
+			; [EAX + 4] input->xh
+			; [EAX + 8] input->c
+			; [EAX + 12] input->r
+			; [EAX + 16] input->nx
+			; [EAX + 20] input->d
+			; [EAX + 24] input->iter
+			; [EAX + 28] input->stepind
+			; [EAX + 32] input->stepvol
+			; [EAX + 36] input->wscale
+
+	MOV	EBX, [EBP+v]			; indirizzo al primo valore di df
+	MOV	ECX, [EBP+sumV]	; indirizzo a sumdf
+
+	;
+	; corpo della funzione
+	;
+
+	XORPS	XMM0, XMM0			; sumV
+	XOR		ESI, ESI					; i = 0
+.i:
+	ADD		ESI, p
+	CMP		ESI, [EAX+16]		; (i<np) ?
+	JG			.end_i
+	SUB		ESI, p
+
+	MOVAPS	XMM1, [EBX+ESI*dim]	; v[i, ..., i+p-1]
+	ADDPS	XMM0, XMM1						; sumV+=v[i, ..., i+p-1]
+
+	ADD			ESI, p
+	JMP			.i
+
+.end_i:
+	SUB			ESI, p
+
+.i_scalar:
+	CMP		ESI, [EAX+16]
+	JGE			.end
+
+	MOVSS	XMM1, [EBX+ESI*dim]	; v[i]
+	ADDSS	XMM0, XMM1						; sumV+=v[i]
+
+	INC			ESI
+	JMP		.i_scalar
+
+.end:
+	HADDPS	XMM0, XMM0		; effettuo le due somme orizzontali rimanenti
+	HADDPS	XMM0, XMM0
+
+	MOVSS	[ECX], XMM0		; *sumV = sumV
+
+
+	;
+	;	sequenza di uscita dalla funzione
+	;
+
+	POP		EDI				; ripristina i registri da preservare
+	POP		ESI
+	POP		EBX
+	MOV	ESP, EBP			; ripristina lo Stack Pointer
+	POP		EBP				; ripristina il Base Pointer
+	RET						; ritorna alla funzione chiamante

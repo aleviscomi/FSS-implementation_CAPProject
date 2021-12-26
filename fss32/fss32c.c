@@ -183,6 +183,7 @@ extern void generaPossibileMovimento(params* input, int* randIndex, int i, VECTO
 extern void muoviPesce(MATRIX x, VECTOR y, MATRIX dx, int i, int d);
 extern void mantieniPosizionePesce(MATRIX dx, int i, int d);
 extern void faiMovimentoVolitivo(params* input, VECTOR b, type dist, type randNum, bool weightGain, int i);
+extern void sommaElementiVettore(params* input, VECTOR df, type* sumdf);
 
 
 // FUNZIONI DI UTILITA'
@@ -333,13 +334,11 @@ void instinctiveMovement(params* input, MATRIX dx, VECTOR df) {
 
     //inizializzazione variabili
     vectI = (VECTOR) alloc_matrix(1, input->d);
-    sumdf=0;
     for(i=0; i<input->d; i++)
         vectI[i] = 0;
 
-
-    for(i=0; i < input->np; i++)
-        sumdf+=df[i];
+    //SUM(df) (in assembly)
+    sommaElementiVettore(input, df, &sumdf);
 
     //calcolo I (in assembly)
     if(sumdf != 0)
@@ -349,6 +348,10 @@ void instinctiveMovement(params* input, MATRIX dx, VECTOR df) {
     sommaVettoreMatrice(input, input->x, vectI);
 
 
+    //SUM(df) (in C)
+    //~ sumdf=0;
+    //~ for(i=0; i < input->np; i++)
+    //~ sumdf+=df[i];
 
     //calcolo I (in C)
 /* 	if(sumdf != 0)
@@ -376,14 +379,20 @@ void calculateB(params* input, VECTOR w, VECTOR b) {
     //inizializzazione variabili
     for(i=0; i<input->d; i++)
         b[i] = 0;
-    sumW=0;
 
 
-    for(i=0; i < input->np; i++)
-        sumW+=w[i];
+    //SUM(w) (in assembly)
+    sommaElementiVettore(input, w, &sumW);
+
 
     //calcolo B (in assembly)
     mediaPesata(input, input->x, w, b, sumW);
+
+
+    //SUM(w) (in C)
+    //~ sumW=0;
+    //~ for(i=0; i < input->np; i++)
+    //~ sumW+=w[i];
 
     //calcolo B (in C)
 /*     for(i=0; i < input->np; i++)
