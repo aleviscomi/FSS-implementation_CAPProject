@@ -36,11 +36,6 @@ section .data			; Sezione contenente dati inizializzati
 
 section .bss			; Sezione contenente dati non inizializzati
 
-	indirizzoMediaP		resd		1	; locazione di memoria utile per la procedura mediaPesata
-	sommaV			resd		1	; locazione che conterrà la sommatoria degli elementi del vettore vect (usata in mediaPesata)
-	input_nx			resd		1	; locazione che conterrà le righe della matrice
-	input_d			resd		1	; locazione che conterrà le colonne della matrice
-
 section .text			; Sezione contenente il codice macchina
 
 
@@ -91,8 +86,8 @@ extern free_block
 
 global prodottoScalare
 
-	vect1	equ	8		; puntatore al vettore dei coefficienti
-	vect2	equ	12		; puntatore al vettore x
+	v1	equ	8		; puntatore al vettore dei coefficienti
+	v2	equ	12		; puntatore al vettore x
 	n			equ	16		; dimensione vettori
 	ris		equ	20		; puntatore alla variabile contenente il risultato
 
@@ -111,8 +106,8 @@ prodottoScalare:
 	; lettura dei parametri dal record di attivazione
 	;
 
-	MOV	EAX, [EBP+vect1]		; x
-	MOV	EBX, [EBP+vect2]		; y
+	MOV	EAX, [EBP+v1]		; v1
+	MOV	EBX, [EBP+v2]		; v2
 	MOV	ECX, [EBP+n]		; n
 	MOV	EDX, [EBP+ris]		; ris
 
@@ -123,31 +118,31 @@ prodottoScalare:
 	XORPS	XMM0, XMM0		; ps = 0
 	XOR 	ESI, ESI			; i = 0
 
-for_i:
+.i:
 	MOV 	EDI, ESI			; indTemp = i
 	ADD 	EDI, p				; indTemp+=p
 	CMP 	EDI, ECX			; (indTemp > n) ?
-	JG		for_i_scalar		; se vero passa a lavorare con scalari, anziché vettori
+	JG		.i_scalar		; se vero passa a lavorare con scalari, anziché vettori
 
-	MOVAPS	XMM1, [EAX+ESI*dim]	; vect1[i, ..., i+p-1]
-	MULPS 	XMM1, [EBX+ESI*dim]	; temp[i, ..., i+p-1] = vect1[i, ..., i+p-1] * vect2[i, ..., i+p-1]
+	MOVAPS	XMM1, [EAX+ESI*dim]	; v1[i, ..., i+p-1]
+	MULPS 	XMM1, [EBX+ESI*dim]	; temp[i, ..., i+p-1] = v1[i, ..., i+p-1] * v2[i, ..., i+p-1]
 	ADDPS	XMM0, XMM1			; ps[i, ..., i+p-1] += temp[i, ..., i+p-1]
 
 	ADD		ESI, p			; i+=p
-	JMP		for_i
+	JMP		.i
 
-for_i_scalar:
+.i_scalar:
 	CMP	ESI, ECX			; (i >= n) ?
-	JGE		end
+	JGE		.end
 
-	MOVSS	XMM1, [EAX+ESI*dim]	; vect1[i]
-	MULSS	XMM1, [EBX+ESI*dim]	; temp[i] = vect1[i] * vect2[i]
+	MOVSS	XMM1, [EAX+ESI*dim]	; v1[i]
+	MULSS	XMM1, [EBX+ESI*dim]	; temp[i] = v1[i] * v2[i]
 	ADDSS	XMM0, XMM1			; ps[i, ..., i+p-1] += temp[i]
 
 	INC		ESI				; i++
-	JMP		for_i_scalar
+	JMP		.i_scalar
 
-end:
+.end:
 	HADDPS	XMM0, XMM0		; effettuo le due somme orizzontali rimanenti
 	HADDPS	XMM0, XMM0
 
@@ -207,29 +202,29 @@ distanzaEuclidea:
 	; corpo della funzione
 	;
 
-loopQ:
+.i:
 	MOV 	EDI, ESI				; temp = i
 	ADD 	EDI, p				; temp += p		per controllare che siano presenti almeno p elementi nella prossima iterazione
 	CMP	EDI, ECX				; temp < n
-	JGE		loopR
+	JGE		.i_scalar
 	MOVAPS	XMM0, [EAX + ESI*dim]	; XMM0 = v1[i ... i+p-1]
 	SUBPS	XMM0, [EBX + ESI*dim]	; XMM0 -= v2[i ... i+p-1]
 	MULPS	XMM0, XMM0			; XMM0 = XMM0^2
 	ADDPS	XMM1, XMM0			; XMM1 += XMM0
 	ADD		ESI, p				; i += p
-	JMP		loopQ
+	JMP		.i
 
-loopR:
+.i_scalar:
 	CMP	ESI, ECX				; i < n		gli elementi restanti in nÂ° < p
-	JGE		endLoop
+	JGE		.end
 	MOVSS	XMM0, [EAX + ESI*dim]	; XMM0 = v1[i]
 	SUBSS	XMM0, [EBX + ESI*dim]	; XMM0 -= v2[i]
 	MULSS	XMM0, XMM0			; XMM0 = XMM0^2
 	ADDSS	XMM1, XMM0			; XMM1 += XMM0
 	INC		ESI					; i++
-	JMP		loopR
+	JMP		.i_scalar
 
-endLoop:
+.end:
 	HADDPS	XMM1, XMM1
 	HADDPS	XMM1, XMM1
 	SQRTSS	XMM1, XMM1
@@ -255,10 +250,10 @@ endLoop:
 
 global mediaPesata
 
-	input	equ	8		; puntatore al vettore dei parametri
-	matrix	equ	12		; puntatore alla matrice
-	vect		equ	16		; puntatore al vettore vect
-	mediaP	equ	20		; puntatore al vettore contenente il risultato
+	input		equ	8			; puntatore al vettore dei parametri
+	matrix		equ	12		; puntatore alla matrice
+	vect			equ	16		; puntatore al vettore vect
+	mediaP		equ	20		; puntatore al vettore contenente il risultato
 	sumVect	equ	24		; contiene la somma degli elementi di vect
 
 mediaPesata:
@@ -268,8 +263,7 @@ mediaPesata:
 
 	PUSH	EBP				; salvo il Base Pointer
 	MOV	EBP, ESP			; il Base Pointer punta al record di attivazione corrente
-	PUSH	ESP				; salvo i registri da preservare
-	PUSH	EBX
+	PUSH	EBX				; salvo i registri da preservare
 	PUSH	ESI
 	PUSH	EDI
 
@@ -289,90 +283,78 @@ mediaPesata:
 			; [EAX + 32] input->stepvol
 			; [EAX + 36] input->wscale
 
-	MOV	EBX, [EAX+16]	; memorizzo il numero di righe della matrice (nx)
-	MOV	[input_nx], EBX
-
-	MOV	EBX, [EAX+20]	; memorizzo il numero di colonne della matrice (d)
-	MOV	[input_d], EBX
-
-	MOV	EAX, [EBP+matrix]	; indirizzo del primo elemento della matrice
-
-	MOV	EBX, [EBP+vect]	; indirizzo di vect
-
-	MOV	ECX, [EBP+mediaP]		; memorizzo l'indirizzo di mediaP in memoria per usarlo dopo
-	MOV	[indirizzoMediaP], ECX	; è necessario ciò perché dopo uso EBP e quindi non potrò più
-								; accederci con [EBP+mediaP]
-
-	MOV	ECX, [EBP+sumVect]	; memorizzo sumVect in quanto perdendo dopo EBP
-	MOV	[sommaV], ECX		; non ci potrei più accedere
+	MOV	EBX, [EBP+matrix]	; indirizzo del primo elemento della matrice
 
 	;
 	; corpo della funzione
 
-	MOV	EBP, 0		; i = 0
-for_i2:
-	IMUL	ESI, EBP, dim		; i*dim
-	IMUL	ESI, [input_d]		; i*d*dim
+	MOV	ESI, 0		; i = 0
+.i:
+	CMP	ESI, [EAX+16]	; (i<nx) ?
+	JGE		.end
 
-	CMP	EBP, [input_nx]	; (i<nx) ?
-	JGE		end2
+	MOV	EDI, 0			; j = 0
+.j:
+	ADD		EDI, p
+	CMP	EDI, [EAX+20]		; (j<d) ?
+	JG		.end_j
+	SUB		EDI, p
 
-	MOV	ECX, 0			; j = 0
-for_j2:
-	ADD		ECX, p
-	CMP	ECX, [input_d]		; (j<d) ?
-	JG		end_for_j2
-	SUB		ECX, p
+	MOV	EDX, ESI					; i
+	IMUL	EDX, [EAX+20]		; i*d
+	ADD		EDX, EDI					; i*d + j
+	IMUL	EDX, dim					; i*d*dim + j*dim
 
-	IMUL	EDI, ECX, dim		; j*dim
+	MOV	ECX, [EBP+vect]		; &v
 
-	MOV	EDX, ESI			; i*d*dim
-	ADD		EDX, EDI			; i*d*dim + j*dim
+	MOVAPS	XMM0, [EBX + EDX]		; matrix[i][j, ..., j+p-1]
+	MOVSS		XMM1, [ECX+ESI*dim]	; v[i]
+	SHUFPS 	XMM1, XMM1, 0				; v[i, ..., i+p-1] = v[i]
+	MULPS		XMM0, XMM1					; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1]
 
-	MOVAPS	XMM0, [EAX + EDX]	; matrix[i][j, ..., j+p-1]
-	MOVSS	XMM1, [EBX+EBP*dim]	; v[i]
-	SHUFPS 	XMM1, XMM1, 0		; v[i, ..., i+p-1] = v[i]
-	MULPS	XMM0, XMM1			; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1]
-	MOVSS	XMM1, [sommaV]		; sumV
-	SHUFPS 	XMM1, XMM1, 0		; sumV[i, ..., i+p-1] = sumV
-	DIVPS	XMM0, XMM1			; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
+	MOVSS		XMM1, [EBP+sumVect]	; sumV
+	SHUFPS 	XMM1, XMM1, 0				; sumV[i, ..., i+p-1] = sumV
+	DIVPS		XMM0, XMM1					; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
 
-	MOV	EDX, [indirizzoMediaP]	; indirizzo di mediaP
-	ADDPS	XMM0, [EDX+EDI] 		; mediaP[j, ..., j+p-1] = matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
-	MOVAPS	[EDX+EDI], XMM0
+	MOV		ECX, [EBP+mediaP]			; &mediaP
+	ADDPS		XMM0, [ECX+EDI*dim] 	; mediaP[j, ..., j+p-1] += matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
+	MOVAPS	[ECX+EDI*dim], XMM0
 
-	ADD		ECX, p
-	JMP		for_j2
+	ADD		EDI, p					; j+=4
+	JMP		.j
 
-end_for_j2:
-	SUB		ECX, p
+.end_j:
+	SUB		EDI, p
 
-for_j_scalar2:
-	CMP	ECX, [input_d]
-	JGE		update_for_i2
+.j_scalar:
+	CMP	EDI, [EAX+20]
+	JGE		.update_i
 
-	IMUL	EDI, ECX, dim		; j*dim
+	MOV	EDX, ESI					; i
+	IMUL	EDX, [EAX+20]		; i*d
+	ADD		EDX, EDI					; i*d + j
+	IMUL	EDX, dim					; i*d*dim + j*dim
 
-	MOV	EDX, ESI			; i*d*dim
-	ADD		EDX, EDI			; i*d*dim + j*dim
+	MOV	ECX, [EBP+vect]		; &v
 
-	MOVSS	XMM0, [EAX + EDX]	; matrix[i][j]
-	MOVSS	XMM1, [EBX+EBP*dim]	; v[i]
-	MULSS	XMM0, XMM1			; matrix[i][j] * v[i]
-	DIVSS	XMM0, [sommaV]		; matrix[i][j] * v[i] / sumV
+	MOVSS	XMM0, [EBX + EDX]		; matrix[i][j]
+	MOVSS	XMM1, [ECX+ESI*dim]	; v[i]
+	MULSS	XMM0, XMM1					; matrix[i][j] * v[i]
 
-	MOV	EDX, [indirizzoMediaP]	; indirizzo di mediaP
-	ADDSS	XMM0, [EDX+EDI] 		; mediaP[j] = matrix[i][j] * v[i] / sumV
-	MOVSS	[EDX+EDI], XMM0
+	DIVSS	XMM0, [EBP+sumVect]	; matrix[i][j] * v[i] / sumV
 
-	INC		ECX
-	JMP		for_j_scalar2
+	MOV	ECX, [EBP+mediaP]			; &mediaP
+	ADDSS	XMM0, [ECX+EDI*dim] 	; mediaP[j] += matrix[i][j] * v[i] / sumV[i]
+	MOVSS	[ECX+EDI*dim], XMM0
 
-update_for_i2:
-	INC		EBP
-	JMP		for_i2
+	INC		EDI							; j++
+	JMP		.j_scalar
 
-end2:
+.update_i:
+	INC		ESI							; i++
+	JMP		.i
+
+.end:
 	; a questo punto in mediaP è stato già messo il risultato e posso quindi terminare
 
 
@@ -383,9 +365,9 @@ end2:
 	POP		EDI				; ripristina i registri da preservare
 	POP		ESI
 	POP		EBX
-	POP		ESP				; ripristina lo Stack Pointer
+	MOV	ESP, EBP		; ripristina lo Stack Pointer
 	POP		EBP				; ripristina il Base Pointer
-	RET
+	RET							; ritorna alla funzione chiamante
 
 
 
@@ -407,8 +389,7 @@ sommaVettoreMatrice:
 
 	PUSH	EBP				; salvo il Base Pointer
 	MOV	EBP, ESP			; il Base Pointer punta al record di attivazione corrente
-	PUSH	ESP				; salvo i registri da preservare
-	PUSH	EBX
+	PUSH	EBX				; salvo i registri da preservare
 	PUSH	ESI
 	PUSH	EDI
 
@@ -428,74 +409,64 @@ sommaVettoreMatrice:
 			; [EAX + 32] input->stepvol
 			; [EAX + 36] input->wscale
 
-	MOV	EBX, [EAX+16]	; memorizzo il numero di righe della matrice (nx)
-	MOV	[input_nx], EBX
+	MOV	EBX, [EBP+matrix]	; indirizzo del primo elemento della matrice
 
-	MOV	EBX, [EAX+20]	; memorizzo il numero di colonne della matrice (d)
-	MOV	[input_d], EBX
-
-
-	MOV	EAX, [EBP+matrix]	; indirizzo del primo elemento della matrice
-
-	MOV	EBX, [EBP+vect]	; indirizzo di vect
+	MOV	ECX, [EBP+vect]		; indirizzo di vect
 
 	;
 	; corpo della funzione
 	;
 
-	MOV	EBP, 0			; i = 0
-for_i3:
-	IMUL	ESI, EBP, dim		; i*dim
-	IMUL	ESI, [input_d]		; i*d*dim
+	MOV	ESI, 0		; i = 0
+.i:
+	CMP	ESI, [EAX+16]	; (i<nx) ?
+	JGE		.end
 
-	CMP	EBP, [input_nx]	; (i<nx) ?
-	JGE		end3
+	MOV	EDI, 0			; j = 0
+.j:
+	ADD		EDI, p
+	CMP	EDI, [EAX+20]		; (j<d) ?
+	JG		.end_j
+	SUB		EDI, p
 
-	MOV	ECX, 0			; j = 0
-for_j3:
-	ADD		ECX, p
-	CMP	ECX, [input_d]		; (j<d) ?
-	JG		end_for_j3
-	SUB		ECX, p
+	MOV	EDX, ESI					; i
+	IMUL	EDX, [EAX+20]		; i*d
+	ADD		EDX, EDI					; i*d + j
+	IMUL	EDX, dim					; i*d*dim + j*dim
 
-	IMUL	EDI, ECX, dim		; j*dim
+	MOVAPS	XMM0, [EBX + EDX]		; matrix[i][j, ..., j+p-1]
+	MOVAPS	XMM1, [ECX+EDI*dim]	; v[j, ..., j+p-1]
+	ADDPS		XMM0, XMM1					; matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
+	MOVAPS	[EBX + EDX], XMM0		; matrix[i][j, ..., j+p-1]  = matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
 
-	MOV	EDX, ESI			; i*d*dim
-	ADD		EDX, EDI			; i*d*dim + j*dim
+	ADD		EDI, p						; j+=4
+	JMP		.j
 
-	MOVAPS	XMM0, [EAX + EDX]	; matrix[i][j, ..., j+p-1]
-	MOVAPS	XMM1, [EBX+ECX*dim]	; v[j, ..., j+p-1]
-	ADDPS		XMM0, XMM1			; matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
-	MOVAPS	[EAX + EDX], XMM0	; matrix[i][j, ..., j+p-1]  = matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
+.end_j:
+	SUB		EDI, p
 
-	ADD		ECX, p
-	JMP		for_j3
+.j_scalar:
+	CMP	EDI, [EAX+20]
+	JGE		.update_i
 
-end_for_j3:
-	SUB		ECX, p
+	MOV	EDX, ESI					; i
+	IMUL	EDX, [EAX+20]		; i*d
+	ADD		EDX, EDI					; i*d + j
+	IMUL	EDX, dim					; i*d*dim + j*dim
 
-for_j_scalar3:
-	CMP	ECX, [input_d]
-	JGE		update_for_i3
-
-	IMUL	EDI, ECX, dim		; j*dim
-
-	MOV	EDX, ESI			; i*d*dim
-	ADD		EDX, EDI			; i*d*dim + j*dim
-
-	MOVSS	XMM0, [EAX + EDX]	; matrix[i][j]
-	MOVSS	XMM1, [EBX+ECX*dim]	; v[j]
+	MOVSS	XMM0, [EBX + EDX]	; matrix[i][j]
+	MOVSS	XMM1, [ECX+EDI*dim]	; v[j]
 	ADDSS	XMM0, XMM1			; matrix[i][j] + v[j]
-	MOVSS	[EAX + EDX], XMM0	; matrix[i][j]  = matrix[i][j] + v[j]
+	MOVSS	[EBX + EDX], XMM0	; matrix[i][j]  = matrix[i][j] + v[j]
 
-	INC		ECX
-	JMP		for_j_scalar3
+	INC		EDI							; j++
+	JMP		.j_scalar
 
-update_for_i3:
-	INC		EBP
-	JMP		for_i3
+.update_i:
+	INC		ESI							; i++
+	JMP		.i
 
-end3:
+.end:
 	; a questo punto la matrice è stata già modificata e posso terminare
 
 	;
@@ -505,7 +476,7 @@ end3:
 	POP		EDI				; ripristina i registri da preservare
 	POP		ESI
 	POP		EBX
-	POP		ESP				; ripristina lo Stack Pointer
+	MOV	ESP, EBP			; ripristina lo Stack Pointer
 	POP		EBP				; ripristina il Base Pointer
 	RET						; ritorna alla funzione chiamante
 
@@ -565,10 +536,10 @@ generaPossibileMovimento:
 	;
 
 	XOR		EDI, EDI					; j = 0
-for_j4:
+.j:
 	ADD		EDI, p
 	CMP	EDI, [EAX + 20]		; (j<d) ?
-	JG		end_for_j4
+	JG		.end_j
 	SUB		EDI, p
 
 	MOV		EDX, [EAX+12]			; &input->r
@@ -594,14 +565,14 @@ for_j4:
 	MOVAPS	[EDX+EDI*dim], XMM0
 
 	ADD		EDI, p
-	JMP		for_j4
+	JMP		.j
 
-end_for_j4:
+.end_j:
 	SUB		EDI, p
 
-for_j_scalar4:
+.j_scalar:
 	CMP	EDI, [EAX+20]
-	JGE		end4
+	JGE		.end
 
 	MOV		EDX, [EAX+12]			; &input->r
 	MOVSS		XMM0, [EDX+ECX*dim]		; input->r[j]
@@ -625,9 +596,9 @@ for_j_scalar4:
 	MOVSS		[EDX+EDI*dim], XMM0
 
 	INC			EDI
-	JMP			for_j_scalar4
+	JMP			.j_scalar
 
-end4:
+.end:
 	MOV	EDX, [EBP+randIndex]		; aggiorno randIndex
 	MOV	[EDX], ECX
 	; a questo punto y è stato già modificato e posso terminare
@@ -652,7 +623,7 @@ end4:
 
 global muoviPesce
 
-	x					equ	8				; puntatore al vettore dei parametri
+	x					equ	8		; puntatore al vettore dei parametri
 	y2				equ	12	; puntatore al vettore delle possibili nuove posizioni
 	deltaX			equ	16	; puntatore alla matrice delle variazioni di posizione
 	i2					equ	20	; indice del pesce i-esimo
@@ -683,10 +654,10 @@ muoviPesce:
 	;
 
 	XOR		EDI, EDI					; j = 0
-for_j5:
+.j:
 	ADD		EDI, p
 	CMP	EDI, [EBP+d]		; (j<d) ?
-	JG		end_for_j5
+	JG		.end_j
 	SUB		EDI, p
 
 	MOVAPS	XMM0, [EBX+EDI*dim]	; y[j, ..., j+p-1]
@@ -702,14 +673,14 @@ for_j5:
 	MOVAPS	[EAX+ESI], XMM2			; input->x[i*d*dim + j*dim] = y[j, ..., j+p-1]
 
 	ADD		EDI, p
-	JMP		for_j5
+	JMP		.j
 
-end_for_j5:
+.end_j:
 	SUB		EDI, p
 
-for_j_scalar5:
+.j_scalar:
 	CMP	EDI, [EBP+d]
-	JGE		end5
+	JGE		.end
 
 	MOVSS		XMM0, [EBX+EDI*dim]	; y[j]
 	MOVSS		XMM2, XMM0					; copio y[j] per salvarlo in x e non rientrare in memoria
@@ -724,9 +695,9 @@ for_j_scalar5:
 	MOVSS		[EAX+ESI], XMM2			; input->x[i*d*dim + j*dim] = y[j]
 
 	INC			EDI
-	JMP			for_j_scalar5
+	JMP			.j_scalar
 
-end5:
+.end:
 	; a questo punto dx e x sono stati già modificati e posso terminare
 
 	;
@@ -778,10 +749,10 @@ mantieniPosizionePesce:
 	;
 
 	XOR		EDI, EDI					; j = 0
-for_j6:
+.j:
 	ADD		EDI, p
 	CMP	EDI, [EBP+d2]		; (j<d) ?
-	JG		end_for_j6
+	JG		.end_j
 	SUB		EDI, p
 
 	MOV		ESI, [EBP+i3]					; i
@@ -792,14 +763,14 @@ for_j6:
 	MOVAPS	[EAX+ESI], XMM0			; dx[i*d*dim + j*dim] = 0
 
 	ADD			EDI, p
-	JMP			for_j6
+	JMP			.j
 
-end_for_j6:
+.end_j:
 	SUB			EDI, p
 
-for_j_scalar6:
+.j_scalar:
 	CMP		EDI, [EBP+d2]
-	JGE			end6
+	JGE			.end
 
 	MOV		ESI, [EBP+i3]					; i
 	IMUL		ESI, [EBP+d2]					; i*d
@@ -809,9 +780,9 @@ for_j_scalar6:
 	MOVSS		[EAX+ESI], XMM0			; dx[i*d*dim + j*dim] = 0
 
 	INC			EDI
-	JMP			for_j_scalar6
+	JMP			.j_scalar
 
-end6:
+.end:
 	; a questo punto dx e x sono stati già modificati e posso terminare
 
 	;
@@ -880,10 +851,10 @@ faiMovimentoVolitivo:
 	;
 
 	XOR			EDI, EDI				; j = 0
-for_j7:
+.j:
 	ADD			EDI, p
 	CMP		EDI, [EAX+20]		; (j<d) ?
-	JG			end_for_j7
+	JG			.end_j
 	SUB			EDI, p
 
 	MOV		ESI, [EBP+i4]		; i
@@ -910,26 +881,26 @@ for_j7:
 
 	MOV		EDX, [EBP+weightGain]
 	CMP		EDX, 0								; if (weightGain)
-	JE				false
+	JE				.false
 	MOVAPS	XMM1, [EBX+ESI]			; x[i*d+j]
 	SUBPS		XMM1, XMM0					; x[i*d+j] - numerator
 	MOVAPS	[EBX+ESI], XMM1			; x[i*d+j] = x[i*d+j] - numerator
-	JMP			end_false
-false:
+	JMP			.end_false
+.false:
 	MOVAPS	XMM1, [EBX+ESI]			; x[i*d+j]
 	ADDPS		XMM1, XMM0					; x[i*d+j] + numerator
 	MOVAPS	[EBX+ESI], XMM1			; x[i*d+j] = x[i*d+j] - numerator
-end_false:
+.end_false:
 
 	ADD			EDI, p
-	JMP			for_j7
+	JMP			.j
 
-end_for_j7:
+.end_j:
 	SUB			EDI, p
 
-for_j_scalar7:
+.j_scalar:
 	CMP		EDI, [EAX+20]
-	JGE			end7
+	JGE			.end
 
 	MOV		ESI, [EBP+i4]					; i
 	IMUL		ESI, [EAX+20]					; i*d
@@ -948,21 +919,21 @@ for_j_scalar7:
 
 	MOV		EDX, [EBP+weightGain]
 	CMP		EDX, 0								; if (weightGain)
-	JE				false2
+	JE				.false_scalar
 	MOVSS		XMM1, [EBX+ESI]			; x[i*d+j]
 	SUBSS		XMM1, XMM0					; x[i*d+j] - numerator
 	MOVSS		[EBX+ESI], XMM1			; x[i*d+j] = x[i*d+j] - numerator
-	JMP			end_false2
-false2:
+	JMP			.end_false_scalar
+.false_scalar:
 	MOVSS		XMM1, [EBX+ESI]			; x[i*d+j]
 	ADDSS		XMM1, XMM0					; x[i*d+j] + numerator
 	MOVSS		[EBX+ESI], XMM1			; x[i*d+j] = x[i*d+j] - numerator
-end_false2:
+.end_false_scalar:
 
 	INC			EDI
-	JMP			for_j_scalar7
+	JMP			.j_scalar
 
-end7:
+.end:
 	; a questo punto posso terminare
 
 	;
