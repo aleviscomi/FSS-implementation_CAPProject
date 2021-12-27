@@ -261,98 +261,100 @@ mediaPesata:
 	; sequenza di ingresso nella funzione
 	;
 
-	PUSH	EBP				; salvo il Base Pointer
-	MOV	EBP, ESP			; il Base Pointer punta al record di attivazione corrente
-	PUSH	EBX				; salvo i registri da preservare
-	PUSH	ESI
-	PUSH	EDI
+	PUSH		EBP				; salvo il Base Pointer
+	MOV		EBP, ESP			; il Base Pointer punta al record di attivazione corrente
+	PUSH		EBX				; salvo i registri da preservare
+	PUSH		ESI
+	PUSH		EDI
 
 	;
 	; lettura dei parametri dal record di attivazione
 	;
 
-	MOV 	EAX, [EBP+input]	; indirizzo della struttura contenente i parametri
-			; [EAX]	input->x
-			; [EAX + 4] input->xh
-			; [EAX + 8] input->c
-			; [EAX + 12] input->r
-			; [EAX + 16] input->nx
-			; [EAX + 20] input->d
-			; [EAX + 24] input->iter
-			; [EAX + 28] input->stepind
-			; [EAX + 32] input->stepvol
-			; [EAX + 36] input->wscale
+	MOV 		EAX, [EBP+input]	; indirizzo della struttura contenente i parametri
+				; [EAX]	input->x
+				; [EAX + 4] input->xh
+				; [EAX + 8] input->c
+				; [EAX + 12] input->r
+				; [EAX + 16] input->nx
+				; [EAX + 20] input->d
+				; [EAX + 24] input->iter
+				; [EAX + 28] input->stepind
+				; [EAX + 32] input->stepvol
+				; [EAX + 36] input->wscale
 
-	MOV	EBX, [EBP+matrix]	; indirizzo del primo elemento della matrice
+	MOV		EBX, [EBP+matrix]	; indirizzo del primo elemento della matrice
 
 	;
 	; corpo della funzione
 
-	MOV	ESI, 0		; i = 0
+
+	MOVSS		XMM1, [EBP+sumVect]	; XMM1 = sumV
+	MOVSS		XMM2, [EBP+sumVect]	; sumV
+	SHUFPS 	XMM2, XMM2, 0				; XMM2 = sumV[i, ..., i+p-1] = sumV
+
+	MOV		ESI, 0		; i = 0
 .i:
-	CMP	ESI, [EAX+16]	; (i<nx) ?
-	JGE		.end
+	CMP		ESI, [EAX+16]	; (i<nx) ?
+	JGE			.end
 
-	MOV	EDI, 0			; j = 0
-.j:
-	ADD		EDI, p
-	CMP	EDI, [EAX+20]		; (j<d) ?
-	JG		.end_j
-	SUB		EDI, p
+	MOV		ECX, [EBP+vect]		; &v
 
-	MOV	EDX, ESI					; i
-	IMUL	EDX, [EAX+20]		; i*d
-	ADD		EDX, EDI					; i*d + j
-	IMUL	EDX, dim					; i*d*dim + j*dim
-
-	MOV	ECX, [EBP+vect]		; &v
-
-	MOVAPS	XMM0, [EBX + EDX]		; matrix[i][j, ..., j+p-1]
-	MOVSS		XMM1, [ECX+ESI*dim]	; v[i]
-	SHUFPS 	XMM1, XMM1, 0				; v[i, ..., i+p-1] = v[i]
-	MULPS		XMM0, XMM1					; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1]
-
-	MOVSS		XMM1, [EBP+sumVect]	; sumV
-	SHUFPS 	XMM1, XMM1, 0				; sumV[i, ..., i+p-1] = sumV
-	DIVPS		XMM0, XMM1					; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
+	MOVSS		XMM3, [ECX+ESI*dim]	; XMM3 = v[i]
+	MOVSS		XMM4, [ECX+ESI*dim]	; v[i]
+	SHUFPS 	XMM4, XMM4, 0				; XMM4 = v[i, ..., i+p-1] = v[i]
 
 	MOV		ECX, [EBP+mediaP]			; &mediaP
+
+	MOV		EDI, 0			; j = 0
+.j:
+	ADD			EDI, p
+	CMP		EDI, [EAX+20]		; (j<d) ?
+	JG			.end_j
+	SUB			EDI, p
+
+	MOV		EDX, ESI					; i
+	IMUL		EDX, [EAX+20]		; i*d
+	ADD			EDX, EDI					; i*d + j
+	IMUL		EDX, dim					; i*d*dim + j*dim
+
+	MOVAPS	XMM0, [EBX + EDX]		; matrix[i][j, ..., j+p-1]
+	MULPS		XMM0, XMM4 				; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1]
+	DIVPS		XMM0, XMM2					; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
+
 	ADDPS		XMM0, [ECX+EDI*dim] 	; mediaP[j, ..., j+p-1] += matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
 	MOVAPS	[ECX+EDI*dim], XMM0
 
-	ADD		EDI, p					; j+=4
-	JMP		.j
+	ADD			EDI, p					; j+=4
+	JMP			.j
 
 .end_j:
-	SUB		EDI, p
+	SUB			EDI, p
 
 .j_scalar:
-	CMP	EDI, [EAX+20]
-	JGE		.update_i
+	CMP		EDI, [EAX+20]
+	JGE			.update_i
 
-	MOV	EDX, ESI					; i
-	IMUL	EDX, [EAX+20]		; i*d
-	ADD		EDX, EDI					; i*d + j
-	IMUL	EDX, dim					; i*d*dim + j*dim
+	MOV		EDX, ESI					; i
+	IMUL		EDX, [EAX+20]		; i*d
+	ADD			EDX, EDI					; i*d + j
+	IMUL		EDX, dim					; i*d*dim + j*dim
 
-	MOV	ECX, [EBP+vect]		; &v
+	MOV		ECX, [EBP+vect]		; &v
 
-	MOVSS	XMM0, [EBX + EDX]		; matrix[i][j]
-	MOVSS	XMM1, [ECX+ESI*dim]	; v[i]
-	MULSS	XMM0, XMM1					; matrix[i][j] * v[i]
+	MOVSS		XMM0, [EBX + EDX]		; matrix[i][j]
+	MULSS		XMM0, XMM3					; matrix[i][j] * v[i]
+	DIVSS		XMM0, XMM1					; matrix[i][j] * v[i] / sumV
 
-	DIVSS	XMM0, [EBP+sumVect]	; matrix[i][j] * v[i] / sumV
+	ADDSS		XMM0, [ECX+EDI*dim] 	; mediaP[j] += matrix[i][j] * v[i] / sumV[i]
+	MOVSS		[ECX+EDI*dim], XMM0
 
-	MOV	ECX, [EBP+mediaP]			; &mediaP
-	ADDSS	XMM0, [ECX+EDI*dim] 	; mediaP[j] += matrix[i][j] * v[i] / sumV[i]
-	MOVSS	[ECX+EDI*dim], XMM0
-
-	INC		EDI							; j++
-	JMP		.j_scalar
+	INC			EDI							; j++
+	JMP			.j_scalar
 
 .update_i:
-	INC		ESI							; i++
-	JMP		.i
+	INC			ESI							; i++
+	JMP			.i
 
 .end:
 	; a questo punto in mediaP è stato già messo il risultato e posso quindi terminare
@@ -362,11 +364,11 @@ mediaPesata:
 	;	sequenza di uscita dalla funzione
 	;
 
-	POP		EDI				; ripristina i registri da preservare
-	POP		ESI
-	POP		EBX
-	MOV	ESP, EBP		; ripristina lo Stack Pointer
-	POP		EBP				; ripristina il Base Pointer
+	POP			EDI				; ripristina i registri da preservare
+	POP			ESI
+	POP			EBX
+	MOV		ESP, EBP		; ripristina lo Stack Pointer
+	POP			EBP				; ripristina il Base Pointer
 	RET							; ritorna alla funzione chiamante
 
 
