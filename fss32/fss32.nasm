@@ -289,9 +289,8 @@ mediaPesata:
 	; corpo della funzione
 
 
-	MOVSS		XMM1, [EBP+sumVect]	; XMM1 = sumV
-	MOVSS		XMM2, [EBP+sumVect]	; sumV
-	SHUFPS 	XMM2, XMM2, 0				; XMM2 = sumV[i, ..., i+p-1] = sumV
+	MOVSS		XMM4, [EBP+sumVect]	; XMM4 = sumV
+	SHUFPS 	XMM4, XMM4, 0				; XMM4 = sumV[i, ..., i+p-1] = sumV
 
 	MOV		ESI, 0		; i = 0
 .i:
@@ -300,9 +299,8 @@ mediaPesata:
 
 	MOV		ECX, [EBP+vect]		; &v
 
-	MOVSS		XMM3, [ECX+ESI*dim]	; XMM3 = v[i]
-	MOVSS		XMM4, [ECX+ESI*dim]	; v[i]
-	SHUFPS 	XMM4, XMM4, 0				; XMM4 = v[i, ..., i+p-1] = v[i]
+	MOVSS		XMM6, [ECX+ESI*dim]	; XMM6 = v[i]
+	SHUFPS 	XMM6, XMM6, 0				; XMM6 = v[i, ..., i+p-1] = v[i]
 
 	MOV		ECX, [EBP+mediaP]			; &mediaP
 
@@ -319,8 +317,8 @@ mediaPesata:
 	IMUL		EDX, dim					; i*d*dim + j*dim
 
 	MOVAPS	XMM0, [EBX + EDX]		; matrix[i][j, ..., j+p-1]
-	MULPS		XMM0, XMM4 				; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1]
-	DIVPS		XMM0, XMM2					; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
+	MULPS		XMM0, XMM6 				; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1]
+	DIVPS		XMM0, XMM4					; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
 
 	ADDPS		XMM0, [ECX+EDI*dim] 	; mediaP[j, ..., j+p-1] += matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
 	MOVAPS	[ECX+EDI*dim], XMM0
@@ -343,8 +341,8 @@ mediaPesata:
 	MOV		ECX, [EBP+vect]		; &v
 
 	MOVSS		XMM0, [EBX + EDX]		; matrix[i][j]
-	MULSS		XMM0, XMM3					; matrix[i][j] * v[i]
-	DIVSS		XMM0, XMM1					; matrix[i][j] * v[i] / sumV
+	MULSS		XMM0, XMM6					; matrix[i][j] * v[i]
+	DIVSS		XMM0, XMM4					; matrix[i][j] * v[i] / sumV
 
 	ADDSS		XMM0, [ECX+EDI*dim] 	; mediaP[j] += matrix[i][j] * v[i] / sumV[i]
 	MOVSS		[ECX+EDI*dim], XMM0
@@ -848,9 +846,20 @@ faiMovimentoVolitivo:
 
 	MOV	ECX, [EBP+b]			; indirizzo del vettore B
 
+	MOV	EDX, [EBP+weightGain]	; 1 se il peso del banco è aumentato, 0 altrimenti
+
 	;
 	; corpo della funzione
 	;
+
+	MOVSS 	XMM5, [EAX+32]			; stepvol
+	SHUFPS	XMM5, XMM5, 0				; stepvol[j, ..., j+p-1]
+
+	MOVSS		XMM6, [EBP+distEuclidea]			; dist
+	SHUFPS	XMM6, XMM6, 0				; dist[j, ..., j+p-1]
+
+	MOVSS		XMM7, [EBP+randNum]	; randNum
+	SHUFPS	XMM7, XMM7, 0				; randNum[j, ..., j+p-1]
 
 	XOR			EDI, EDI				; j = 0
 .j:
@@ -866,22 +875,13 @@ faiMovimentoVolitivo:
 
 	MOVAPS	XMM0, [EBX+ESI]			; x[i*d+j]
 	MOVAPS	XMM1, [ECX+EDI*dim]	; B[j]
+
 	SUBPS		XMM0, XMM1					; x[i*d+j] - B[j]
-
-	MOVSS		XMM1, [EBP+randNum]	; randNum
-	SHUFPS	XMM1, XMM1, 0				; randNum[j, ..., j+p-1]
-	MULPS		XMM0, XMM1					; (x[i*d+j]-B[j])*randNum
-
-	MOVSS 	XMM1, [EAX+32]			; stepvol
-	SHUFPS	XMM1, XMM1, 0				; stepvol[j, ..., j+p-1]
-	MULPS		XMM0, XMM1					; (x[i*d+j]-B[j])*randNum*stepvol
-
-	MOVSS		XMM1, [EBP+distEuclidea]			; dist
-	SHUFPS	XMM1, XMM1, 0				; dist[j, ..., j+p-1]
-	DIVPS		XMM0, XMM1					; (x[i*d+j]-B[j])*randNum*stepvol / dist (= numerator)
+	MULPS		XMM0, XMM7					; (x[i*d+j]-B[j])*randNum
+	MULPS		XMM0, XMM5					; (x[i*d+j]-B[j])*randNum*stepvol
+	DIVPS		XMM0, XMM6					; (x[i*d+j]-B[j])*randNum*stepvol / dist (= numerator)
 
 
-	MOV		EDX, [EBP+weightGain]
 	CMP		EDX, 0								; if (weightGain)
 	JE				.false
 	MOVAPS	XMM1, [EBX+ESI]			; x[i*d+j]
@@ -911,15 +911,13 @@ faiMovimentoVolitivo:
 
 	MOVSS		XMM0, [EBX+ESI]			; x[i*d+j]
 	MOVSS		XMM1, [ECX+EDI*dim]	; B[j]
+
 	SUBSS		XMM0, XMM1					; x[i*d+j] - B[j]
+	MULSS		XMM0, XMM7					; (x[i*d+j]-B[j])*randNum
+	MULSS 	XMM0, XMM5					; (x[i*d+j]-B[j])*randNum*stepvol
+	DIVSS		XMM0, XMM6					; (x[i*d+j]-B[j])*randNum*stepvol / dist (= numerator)
 
-	MULSS		XMM0, [EBP+randNum]	; (x[i*d+j]-B[j])*randNum
 
-	MULSS 	XMM0, [EAX+32]			; (x[i*d+j]-B[j])*randNum*stepvol
-
-	DIVSS		XMM0, [EBP+distEuclidea]			; (x[i*d+j]-B[j])*randNum*stepvol / dist (= numerator)
-
-	MOV		EDX, [EBP+weightGain]
 	CMP		EDX, 0								; if (weightGain)
 	JE				.false_scalar
 	MOVSS		XMM1, [EBX+ESI]			; x[i*d+j]
