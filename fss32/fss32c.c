@@ -207,21 +207,34 @@ type function(VECTOR c, VECTOR x, int size) {
     type xQuad;
     type cx;
 
-    //calcolo x^2 e c o x (in assembly)
-    prodottoScalare(x, x, size, &xQuad);
-    prodottoScalare(c, x, size, &cx);
-
     //calcolo x^2 e c o x (in C)
-/*     xQuad = 0;
- *     cx = 0;
- *     for(i=0; i < size; i++) {
- *         xQuad += x[i] * x[i];
- *         cx += c[i] * x[i];
- *     }
- */
+    xQuad = 0;
+    cx = 0;
+    for(i=0; i < size; i++) {
+        xQuad += x[i] * x[i];
+        cx += c[i] * x[i];
+    }
 
     return exp(xQuad) + xQuad - cx;
 } //function
+
+/*
+ * Funzione che calcola (x) = e^(x^2) + x^2 - c o x, con le ottimizzazioni Assembly
+ */
+type functionAssembly(VECTOR c, VECTOR x, int size) {
+    int i;
+    type xQuad;
+    type cx;
+
+    //calcolo x^2 e c o x (in assembly)
+    xQuad = 0;
+    cx = 0;
+    prodottoScalare(x, x, size, &xQuad);
+    prodottoScalare(c, x, size, &cx);
+
+    return exp(xQuad) + xQuad - cx;
+} //functionAssembly
+
 
 /*
  * Funzione che calcola e restituisce, dato un vettore v e la sua dimensione size,
@@ -296,8 +309,8 @@ void individualMovementAssembly(params* input, int* randIndex, int i, VECTOR df,
     generaPossibileMovimento(input, randIndex, i, y);
 
     //calcolo i valori di funzione con x e y
-    fx = function(input->c, &input->x[input->d * i], input->d);
-    fy = function(input->c, y, input->d);
+    fx = functionAssembly(input->c, &input->x[input->d * i], input->d);
+    fy = functionAssembly(input->c, y, input->d);
 
 
     //se la nuova posizione è migliore allora mi sposto, altrimenti mantengo la precedente
