@@ -319,7 +319,6 @@ distanzaEuclidea:
 	RET
 
 
-
 ;
 ; procedura di calcolo della media pesata
 ;
@@ -605,8 +604,6 @@ global generaPossibileMovimento
 
 	align 16
 	uno				dd	1.0, 1.0, 1.0, 1.0		; 1
-	align 16
-	due				dd	2.0, 2.0, 2.0, 2.0		; 2
 
 	input			equ	8		; puntatore al vettore dei parametri
 	randIndex	equ	12	; puntatore all'indice che scorre il file dei numeri random
@@ -659,19 +656,19 @@ generaPossibileMovimento:
 
 	MOV		EDX, [EAX+12]									; &input->r
 	MOVAPS	XMM0, [EDX+ECX*dim+p*0*dim]		; input->r[ri, ..., ri+p-1]
-	MULPS		XMM0, [due]										; input->r[ri, ..., ri+p-1] * 2
+	ADDPS		XMM0, XMM0										; input->r[ri, ..., ri+p-1] * 2
 	SUBPS		XMM0, [uno]										; input->r[ri, ..., ri+p-1] * 2 - 1
 
 	MOVAPS	XMM1, [EDX+ECX*dim+p*1*dim]
-	MULPS		XMM1, [due]
+	ADDPS		XMM1, XMM1
 	SUBPS		XMM1, [uno]
 
 	MOVAPS	XMM2, [EDX+ECX*dim+p*2*dim]
-	MULPS		XMM2, [due]
+	ADDPS		XMM2, XMM2
 	SUBPS		XMM2, [uno]
 
 	MOVAPS	XMM3, [EDX+ECX*dim+p*3*dim]
-	MULPS		XMM3, [due]
+	ADDPS		XMM3, XMM3
 	SUBPS		XMM3, [uno]
 
 	ADD			ECX, p*unroll
@@ -721,7 +718,7 @@ generaPossibileMovimento:
 
 	MOV		EDX, [EAX+12]					; &input->r
 	MOVAPS	XMM0, [EDX+ECX*dim]		; input->r[ri, ..., ri+p-1]
-	MULPS		XMM0, [due]						; input->r[ri, ..., ri+p-1] * 2
+	ADDPS		XMM0, XMM0						; input->r[ri, ..., ri+p-1] * 2
 	SUBPS		XMM0, [uno]						; input->r[ri, ..., ri+p-1] * 2 - 1
 
 	ADD			ECX, p
@@ -753,7 +750,7 @@ generaPossibileMovimento:
 
 	MOV		EDX, [EAX+12]					; &input->r
 	MOVSS		XMM0, [EDX+ECX*dim]		; input->r[j]
-	MULSS		XMM0, [due]						; input->r[ri] * 2
+	ADDSS		XMM0, XMM0						; input->r[ri] * 2
 	SUBSS		XMM0, [uno]						; input->r[ri] * 2 - 1
 
 	INC			ECX

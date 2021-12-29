@@ -604,30 +604,28 @@ global generaPossibileMovimento
 
 	align 16
 	uno				dd	1.0, 1.0, 1.0, 1.0		; 1
-	align 16
-	due				dd	2.0, 2.0, 2.0, 2.0		; 2
-	
+
 	input			equ	8		; puntatore al vettore dei parametri
 	randIndex	equ	12	; puntatore all'indice che scorre il file dei numeri random
 	i					equ	16	; indice del pesce i-esimo
 	y					equ	20	; puntatore al vettore delle possibili nuove posizioni
-	
+
 generaPossibileMovimento:
 
 	;
 	; sequenza di ingresso nella funzione
 	;
-	
+
 	PUSH		EBP					; salvo il Base Pointer
 	MOV		EBP, ESP			; il Base Pointer punta al record di attivazione corrente
 	PUSH		EBX					; salvo i registri da preservare
 	PUSH		ESI
 	PUSH		EDI
-	
+
 	;
 	; lettura dei parametri dal record di attivazione
 	;
-	
+
 	MOV 		EAX, [EBP+input]	; indirizzo della struttura contenente i parametri
 				; [EAX]	input->x
 				; [EAX + 4] input->xh
@@ -639,120 +637,120 @@ generaPossibileMovimento:
 				; [EAX + 28] input->stepind
 				; [EAX + 32] input->stepvol
 				; [EAX + 36] input->wscale
-			
+
 	MOV		EBX, [EAX]				; indirizzo del primo elemento della matrice
-	
+
 	MOV		EDX, [EBP+randIndex]		; indirizzo dell'indice dei numeri random
 	MOV		ECX, [EDX]				; indice dei numeri random
-	
+
 	;
 	; corpo della funzione
 	;
-	
+
 	XOR			EDI, EDI					; j = 0
 .j:
 	ADD			EDI, p*unroll
 	CMP		EDI, [EAX + 20]		; (j<d) ?
 	JG			.end_j
 	SUB			EDI, p*unroll
-	
+
 	MOV		EDX, [EAX+12]									; &input->r
 	MOVAPS	XMM0, [EDX+ECX*dim+p*0*dim]		; input->r[ri, ..., ri+p-1]
-	MULPS		XMM0, [due]										; input->r[ri, ..., ri+p-1] * 2
+	ADDPS		XMM0, XMM0										; input->r[ri, ..., ri+p-1] * 2
 	SUBPS		XMM0, [uno]										; input->r[ri, ..., ri+p-1] * 2 - 1
-	
-	MOVAPS	XMM1, [EDX+ECX*dim+p*1*dim]	
-	MULPS		XMM1, [due]				
-	SUBPS		XMM1, [uno]				
-	
-	MOVAPS	XMM2, [EDX+ECX*dim+p*2*dim]	
-	MULPS		XMM2, [due]				
-	SUBPS		XMM2, [uno]				
-	
-	MOVAPS	XMM3, [EDX+ECX*dim+p*3*dim]	
-	MULPS		XMM3, [due]				
-	SUBPS		XMM3, [uno]				
-	
+
+	MOVAPS	XMM1, [EDX+ECX*dim+p*1*dim]
+	ADDPS		XMM1, XMM1
+	SUBPS		XMM1, [uno]
+
+	MOVAPS	XMM2, [EDX+ECX*dim+p*2*dim]
+	ADDPS		XMM2, XMM2
+	SUBPS		XMM2, [uno]
+
+	MOVAPS	XMM3, [EDX+ECX*dim+p*3*dim]
+	ADDPS		XMM3, XMM3
+	SUBPS		XMM3, [uno]
+
 	ADD			ECX, p*unroll
-	
+
 	MOVSS		XMM4, [EAX+28]		; input->stepind
 	SHUFPS	XMM4, XMM4, 0			; input->stepind[j, ..., j+p-1]
-	
+
 	MULPS		XMM0, XMM4				; (input->r[ri, ..., ri+p-1] * 2 - 1) * input->stepind[j, ..., j+p-1]
 	MULPS		XMM1, XMM4
 	MULPS		XMM2, XMM4
 	MULPS		XMM3, XMM4
-	
+
 	MOV		ESI, [EBP+i]					; i
 	IMUL		ESI, [EAX+20]				; i*d
 	ADD			ESI, EDI						; i*d + j
 	IMUL		ESI, ESI, dim				; i*d*dim + j*dim
-	
+
 	MOVAPS	XMM4, [EBX+ESI+p*0*dim]	; input->x[i*d*dim + j*dim]
-	ADDPS		XMM0, XMM4							; input->x[i*d*dim 
-	
+	ADDPS		XMM0, XMM4							; input->x[i*d*dim
+
 	MOVAPS	XMM4, [EBX+ESI+p*1*dim]
 	ADDPS		XMM1, XMM4
-	
+
 	MOVAPS	XMM4, [EBX+ESI+p*2*dim]
 	ADDPS		XMM2, XMM4
-	
+
 	MOVAPS	XMM4, [EBX+ESI+p*3*dim]
 	ADDPS		XMM3, XMM4
-	
+
 	MOV		EDX, [EBP+y]
 	MOVAPS	[EDX+EDI*dim+p*0*dim], XMM0
 	MOVAPS	[EDX+EDI*dim+p*1*dim], XMM1
 	MOVAPS	[EDX+EDI*dim+p*2*dim], XMM2
 	MOVAPS	[EDX+EDI*dim+p*3*dim], XMM3
-	
+
 	ADD			EDI, p*unroll
 	JMP			.j
-	
+
 .end_j:
 	SUB			EDI, p*unroll
-	
+
 .j_no_unroll:
 	ADD			EDI, p
 	CMP		EDI, [EAX + 20]		; (j<d) ?
 	JG			.end_j_no_unroll
 	SUB			EDI, p
-	
+
 	MOV		EDX, [EAX+12]					; &input->r
 	MOVAPS	XMM0, [EDX+ECX*dim]		; input->r[ri, ..., ri+p-1]
-	MULPS		XMM0, [due]						; input->r[ri, ..., ri+p-1] * 2
+	ADDPS		XMM0, XMM0						; input->r[ri, ..., ri+p-1] * 2
 	SUBPS		XMM0, [uno]						; input->r[ri, ..., ri+p-1] * 2 - 1
-	
+
 	ADD			ECX, p
-	
+
 	MOVSS		XMM4, [EAX+28]		; input->stepind
 	SHUFPS	XMM4, XMM4, 0			; input->stepind[j, ..., j+p-1]
 	MULPS		XMM0, XMM4				; (input->r[ri, ..., ri+p-1] * 2 - 1) * input->stepind[j, ..., j+p-1]
-	
+
 	MOV		ESI, [EBP+i]					; i
 	IMUL		ESI, [EAX+20]				; i*d
 	ADD			ESI, EDI						; i*d + j
 	IMUL		ESI, ESI, dim				; i*d*dim + j*dim
-	
+
 	MOVAPS	XMM4, [EBX+ESI]		; input->x[i*d*dim + j*dim]
 	ADDPS		XMM0, XMM4				; input->x[i*d*dim + j*dim] + (input->r[ri, ..., ri+p-1] * 2 - 1) * input->stepind[j, ..., j+p-1]
-	
+
 	MOV		EDX, [EBP+y]
 	MOVAPS	[EDX+EDI*dim], XMM0
-	
+
 	ADD			EDI, p
 	JMP			.j_no_unroll
-	
+
 .end_j_no_unroll:
 	SUB			EDI, p
-	
+
 .j_scalar:
 	CMP		EDI, [EAX+20]
 	JGE			.end
-	
+
 	MOV		EDX, [EAX+12]					; &input->r
 	MOVSS		XMM0, [EDX+ECX*dim]		; input->r[j]
-	MULSS		XMM0, [due]						; input->r[ri] * 2
+	ADDSS		XMM0, XMM0						; input->r[ri] * 2
 	SUBSS		XMM0, [uno]						; input->r[ri] * 2 - 1
 	
 	INC			ECX
