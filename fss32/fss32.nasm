@@ -31,9 +31,10 @@
 
 section .data			; Sezione contenente dati inizializzati
 
-	dim		equ	4		; dimensione in byte di un singolo dato (4 se float, 8 se double)
-	p			equ	4		; grado di parallelismo SIMD (4 se float, 2 se double)
-	unroll	equ	4		; fattore di unroll
+	dim			equ	4		; dimensione in byte di un singolo dato (4 se float, 8 se double)
+	p				equ	4		; grado di parallelismo SIMD (4 se float, 2 se double)
+	unroll		equ	4		; fattore di unroll
+	blocksize	equ	32	; fattore di blocking
 
 section .bss			; Sezione contenente dati non inizializzati
 
@@ -535,7 +536,7 @@ sommaVettoreMatrice:
 	JMP			.j
 
 .end_j:
-	SUB			EDI, p
+	SUB			EDI, p*unroll
 
 .j_no_unroll:
 	ADD			EDI, p
