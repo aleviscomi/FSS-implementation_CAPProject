@@ -571,7 +571,7 @@ void fss(params* input){
     stepindInit = input->stepind;
     stepvolInit = input->stepvol;
     randIndex = 0;
-    //srand(time(NULL)); //utile in fase di testing per calcolare ad ogni esecuzione numeri getRandom differenti
+    //srand(time(NULL)); //utile in fase di testing per calcolare ad ogni esecuzione numeri random differenti
     weightGain = false;
 
     //inizializzazione pesi pesci a wscale/2

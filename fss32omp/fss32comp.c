@@ -207,7 +207,7 @@ type function(VECTOR c, VECTOR x, int size) {
     int i;
     type xQuad;
     type cx;
-	
+
     //calcolo x^2 e c o x (in C)
     xQuad = 0;
 	cx = 0;
@@ -226,11 +226,11 @@ type functionAssembly(VECTOR c, VECTOR x, int size) {
     int i;
     type xQuad;
     type cx;
-    
+
     //calcolo x^2 e c o x (in assembly)
     xQuad = 0;
 	cx = 0;
-    prodottoScalare(x, x, size, &xQuad);	
+    prodottoScalare(x, x, size, &xQuad);
     prodottoScalare(c, x, size, &cx);
 
     return exp(xQuad) + xQuad - cx;
@@ -255,7 +255,7 @@ type min(VECTOR v, int size){
 
 
 
-// FUNZIONI DELL'ALGORITMO FSS 
+// FUNZIONI DELL'ALGORITMO FSS
 
 /*
  * Funzione che calcola il movimento individuale del pesce i-esimo.
@@ -273,11 +273,11 @@ void individualMovement(params* input, int* randIndex, int i, VECTOR df, MATRIX 
     //calcolo la possibile variazione di posizione del pesce i-esimo, come: y[j] = x[i][j] + rand(-1, 1) * stepind
     for(j=0; j<input->d; j++)
 		y[j] = input->x[input->d * i + j] + getRandom(input, randIndex, -1, 1) * input->stepind;
-	
+
     //calcolo i valori di funzione con x e y
     fx = function(input->c, &input->x[input->d * i], input->d);
     fy = function(input->c, y, input->d);
-	
+
 	//se la nuova posizione è migliore allora mi sposto, altrimenti mantengo la precedente
     if(fy < fx) {
         df[i] = fy - fx;
@@ -305,10 +305,10 @@ void individualMovementAssembly(params* input, int* randIndex, int i, VECTOR df,
     type fy; //f(y[i])
 
     y = (VECTOR) alloc_matrix(1, input->d);
-	
+
     //calcolo la possibile variazione di posizione del pesce i-esimo, come: y[j] = x[i][j] + rand(-1, 1) * stepind
 	generaPossibileMovimento(input, randIndex, i, y);
-	
+
     //calcolo i valori di funzione con x e y
     fx = functionAssembly(input->c, &input->x[input->d * i], input->d);
     fy = functionAssembly(input->c, y, input->d);
@@ -368,7 +368,7 @@ void instinctiveMovement(params* input, MATRIX dx, VECTOR df) {
     vectI = (VECTOR) alloc_matrix(1, input->d);
     for(i=0; i<input->d; i++)
         vectI[i] = 0;
-	
+
 	//SUM(df)
     sumdf=0;
     for(i=0; i < input->np; i++)
@@ -379,13 +379,13 @@ void instinctiveMovement(params* input, MATRIX dx, VECTOR df) {
 		for(i=0; i < input->np; i++)
 			for(j=0; j < input->d; j++)
 				vectI[j] += dx[input->d * i + j] * df[i] / sumdf;
-	
+
     //sommo I ai vettori x[i]
     for(i=0; i < input->np; i++)
         for(j=0; j < input->d; j++)
             input->x[input->d * i + j] += vectI[j];
-	
-	
+
+
     dealloc_matrix(vectI);
 } //instinctiveMovement
 
@@ -401,18 +401,18 @@ void instinctiveMovementAssembly(params* input, MATRIX dx, VECTOR df) {
     vectI = (VECTOR) alloc_matrix(1, input->d);
     for(i=0; i<input->d; i++)
         vectI[i] = 0;
-	
+
 	//SUM(df)
     sommaElementiVettore(input, df, &sumdf);
 
 	//calcolo I
 	if(sumdf != 0)
 		mediaPesata(input, dx, df, vectI, sumdf);
-	
+
     //sommo I ai vettori x[i]
     sommaVettoreMatrice(input, input->x, vectI);
-	
-	
+
+
     dealloc_matrix(vectI);
 } //instinctiveMovementAssembly
 
@@ -427,17 +427,17 @@ void calculateB(params* input, VECTOR w, VECTOR b) {
     //inizializzazione variabili
     for(i=0; i<input->d; i++)
         b[i] = 0;
-	
+
 	//SUM(w)
     sumW=0;
     for(i=0; i < input->np; i++)
-        sumW+=w[i]; 
+        sumW+=w[i];
 
     //calcolo B
-    for(i=0; i < input->np; i++) 
+    for(i=0; i < input->np; i++)
         for(j=0; j < input->d; j++)
             b[j] += input->x[input->d * i + j] * w[i] / sumW;
-    
+
 } //calculateB
 
 /*
@@ -450,13 +450,13 @@ void calculateBAssembly(params* input, VECTOR w, VECTOR b) {
     //inizializzazione variabili
     for(i=0; i<input->d; i++)
         b[i] = 0;
-	
+
 	//SUM(w)
     sommaElementiVettore(input, w, &sumW);
-	
+
 	//calcolo B
     mediaPesata(input, input->x, w, b, sumW);
-	
+
 } //calculateBAssembly
 
 
@@ -474,7 +474,7 @@ void volitiveMovement(params* input, int* randIndex, VECTOR b, bool weightGain){
 
     //inizializzazione
     numerator = (VECTOR) alloc_matrix(1,input->d);
-	
+
     //calcolo, per ogni pesce, la nuova posizione dovuta al movimento volitivo
     for(i=0; i<input->np; i++){
         //calcolo di un numero getRandom per ogni pesce
@@ -488,7 +488,7 @@ void volitiveMovement(params* input, int* randIndex, VECTOR b, bool weightGain){
 
 		//nel caso in cui il vettore Xi e B sono uguali (dunque distEuclidea=0) non sommo nulla ad Xi, per cui posso passare al movimento volitivo del prossimo pesce
 		if(dist==0) continue;
-		
+
         //calcolo del movimento per ogni coordinata del pesce i-esimo
         for(j=0; j<input->d; j++) {
             //(stepvol * rand(0,1) * (x[i][j] - B[j])) / (distanzaEuclidea)
@@ -518,7 +518,7 @@ void volitiveMovementAssembly(params* input, int* randIndex, VECTOR b, bool weig
 
     //inizializzazione
     numerator = (VECTOR) alloc_matrix(1,input->d);
-	
+
     //calcolo, per ogni pesce, la nuova posizione dovuta al movimento volitivo
     for(i=0; i<input->np; i++){
         //calcolo di un numero getRandom per ogni pesce
@@ -530,7 +530,7 @@ void volitiveMovementAssembly(params* input, int* randIndex, VECTOR b, bool weig
 
 		//nel caso in cui il vettore Xi e B sono uguali (dunque distEuclidea=0) non sommo nulla ad Xi, per cui posso passare al movimento volitivo del prossimo pesce
 		if(dist==0) continue;
-	    
+
         //calcolo del movimento per ogni coordinata del pesce i-esimo
 		faiMovimentoVolitivo(input, b, dist, randNum, weightGain, i);
     }
@@ -572,7 +572,7 @@ void fss(params* input){
     stepindInit = input->stepind;
     stepvolInit = input->stepvol;
     randIndex = 0;
-    //srand(time(NULL)); //utile in fase di testing per calcolare ad ogni esecuzione numeri getRandom differenti
+    //srand(time(NULL)); //utile in fase di testing per calcolare ad ogni esecuzione numeri random differenti
     weightGain = false;
 
     //inizializzazione pesi pesci a wscale/2

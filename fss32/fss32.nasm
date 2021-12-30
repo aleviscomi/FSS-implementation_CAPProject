@@ -88,7 +88,7 @@ extern free_block
 
 global prodottoScalare
 
-	v1		equ	8		; puntatore al vettore dei coefficienti
+	v1		equ	8			; puntatore al vettore dei coefficienti
 	v2		equ	12		; puntatore al vettore x
 	n			equ	16		; dimensione vettori
 	ris		equ	20		; puntatore alla variabile contenente il risultato
@@ -129,21 +129,25 @@ prodottoScalare:
 	CMP 		EDI, ECX				; (indTemp > n) ?
 	JG			.i_no_unroll			; se vero passa a lavorare senza loop unrolling
 
-	MOVAPS	XMM4, [EAX+ESI*dim+p*0*dim]	; v1[i, ..., i+p-1]
-	MULPS 		XMM4, [EBX+ESI*dim+p*0*dim]	; temp[i, ..., i+p-1] = v1[i, ..., i+p-1] * v2[i, ..., i+p-1]
+	MOVUPS	XMM4, [EAX+ESI*dim+p*0*dim]	; v1[i, ..., i+p-1]
+	MOVUPS 	XMM5, [EBX+ESI*dim+p*0*dim]	; v2[i, ..., i+p-1]
+	MULPS 		XMM4, XMM5									; temp[i, ..., i+p-1] = v1[i, ..., i+p-1] * v2[i, ..., i+p-1]
 	ADDPS		XMM0, XMM4									; ps[i, ..., i+p-1] += temp[i, ..., i+p-1]
 
-	MOVAPS	XMM4, [EAX+ESI*dim+p*1*dim]	; v1[i+p, ..., i+2p-1]
-	MULPS 		XMM4, [EBX+ESI*dim+p*1*dim]	; temp[i+p, ..., i+2p-1] = v1[i+p, ..., i+2p-1] * v2[i+p, ..., i+2p-1]
-	ADDPS		XMM1, XMM4 								; ps[i+p, ..., i+2p-1]+= temp[i+p, ..., i+2p-1]
+	MOVUPS	XMM4, [EAX+ESI*dim+p*1*dim]	; v1[i, ..., i+p-1]
+	MOVUPS 	XMM5, [EBX+ESI*dim+p*1*dim]	; v2[i, ..., i+p-1]
+	MULPS 		XMM4, XMM5									; temp[i, ..., i+p-1] = v1[i, ..., i+p-1] * v2[i, ..., i+p-1]
+	ADDPS		XMM1, XMM4									; ps[i, ..., i+p-1] += temp[i, ..., i+p-1]
 
-	MOVAPS	XMM4, [EAX+ESI*dim+p*2*dim]	; v1[i+2p, ..., i+3p-1]
-	MULPS 		XMM4, [EBX+ESI*dim+p*2*dim]	; temp[i+2p, ..., i+3p-1]= v1[i+2p, ..., i+3p-1] * v2[i+2p, ..., i+3p-1]
-	ADDPS		XMM2, XMM4									; ps[i+2p, ..., i+3p-1] += temp[i+2p, ..., i+3p-1]
+	MOVUPS	XMM4, [EAX+ESI*dim+p*2*dim]	; v1[i, ..., i+p-1]
+	MOVUPS 	XMM5, [EBX+ESI*dim+p*2*dim]	; v2[i, ..., i+p-1]
+	MULPS 		XMM4, XMM5									; temp[i, ..., i+p-1] = v1[i, ..., i+p-1] * v2[i, ..., i+p-1]
+	ADDPS		XMM2, XMM4									; ps[i, ..., i+p-1] += temp[i, ..., i+p-1]
 
-	MOVAPS	XMM4, [EAX+ESI*dim+p*3*dim]	; v1[i+3p, ..., i+4p-1]
-	MULPS 		XMM4, [EBX+ESI*dim+p*3*dim]	; temp[i+3p, ..., i+4p-1] = v1[i+3p, ..., i+4p-1] * v2[i+3p, ..., i+4p-1]
-	ADDPS		XMM3, XMM4									; ps[i+3p, ..., i+4p-1] += temp[i+3p, ..., i+4p-1]
+	MOVUPS	XMM4, [EAX+ESI*dim+p*3*dim]	; v1[i, ..., i+p-1]
+	MOVUPS 	XMM5, [EBX+ESI*dim+p*3*dim]	; v2[i, ..., i+p-1]
+	MULPS 		XMM4, XMM5									; temp[i, ..., i+p-1] = v1[i, ..., i+p-1] * v2[i, ..., i+p-1]
+	ADDPS		XMM3, XMM4									; ps[i, ..., i+p-1] += temp[i, ..., i+p-1]
 
 	ADD			ESI, p*unroll		; i+=p*unroll
 	JMP			.i
@@ -154,8 +158,9 @@ prodottoScalare:
 	CMP 		EDI, ECX			; (indTemp > n) ?
 	JG			.i_scalar			; se vero passa a lavorare con scalari, anziché vettori
 
-	MOVAPS	XMM4, [EAX+ESI*dim]	; v1[i, ..., i+p-1]
-	MULPS 		XMM4, [EBX+ESI*dim]	; temp[i, ..., i+p-1] = v1[i, ..., i+p-1] * v2[i, ..., i+p-1]
+	MOVUPS	XMM4, [EAX+ESI*dim]	; v1[i, ..., i+p-1]
+	MOVUPS 	XMM5, [EBX+ESI*dim]	; v2[i, ..., i+p-1]
+	MULPS 		XMM4, XMM5					; temp[i, ..., i+p-1] = v1[i, ..., i+p-1] * v2[i, ..., i+p-1]
 	ADDPS		XMM0, XMM4					; ps[i, ..., i+p-1] += temp[i, ..., i+p-1]
 
 	ADD			ESI, p				; i+=p
@@ -245,10 +250,10 @@ distanzaEuclidea:
 	CMP		EDI, ECX				; temp < n
 	JGE			.i_no_unroll
 
-	MOVAPS	XMM4, [EAX + ESI*dim+p*0*dim]	; XMM4 = v1[i ... i+p-1]
-	MOVAPS	XMM5, [EAX + ESI*dim+p*1*dim]
-	MOVAPS	XMM6, [EAX + ESI*dim+p*2*dim]
-	MOVAPS	XMM7, [EAX + ESI*dim+p*3*dim]
+	MOVUPS	XMM4, [EAX + ESI*dim+p*0*dim]	; XMM4 = v1[i ... i+p-1]
+	MOVUPS	XMM5, [EAX + ESI*dim+p*1*dim]
+	MOVUPS	XMM6, [EAX + ESI*dim+p*2*dim]
+	MOVUPS	XMM7, [EAX + ESI*dim+p*3*dim]
 
 	SUBPS		XMM4, [EBX + ESI*dim+p*0*dim] 	; XMM4 -= v2[i ... i+p-1]
 	MULPS		XMM4, XMM4 								; XMM4 = XMM4^2
@@ -275,7 +280,7 @@ distanzaEuclidea:
 	CMP		EDI, ECX				; temp < n
 	JGE			.i_scalar
 
-	MOVAPS	XMM4, [EAX + ESI*dim]	; XMM4 = v1[i ... i+p-1]
+	MOVUPS	XMM4, [EAX + ESI*dim]	; XMM4 = v1[i ... i+p-1]
 	SUBPS		XMM4, [EBX + ESI*dim]	; XMM4 -= v2[i ... i+p-1]
 	MULPS		XMM4, XMM4 				; XMM4 = XMM4^2
 	ADDPS		XMM0, XMM4					; XMM0 += XMM4
@@ -391,7 +396,7 @@ mediaPesata:
 	ADD			EDX, EDI					; i*d + j
 	IMUL		EDX, dim					; i*d*dim + j*dim
 
-	MOVAPS	XMM0, [EBX + EDX]		; matrix[i][j, ..., j+p-1]
+	MOVUPS	XMM0, [EBX + EDX]		; matrix[i][j, ..., j+p-1]
 	MULPS		XMM0, XMM6 				; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1]
 	DIVPS		XMM0, XMM4					; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
 
@@ -453,7 +458,7 @@ mediaPesata:
 
 global sommaVettoreMatrice
 
-	input	equ	8		; puntatore al vettore dei parametri
+	input	equ	8			; puntatore al vettore dei parametri
 	matrix	equ	12		; puntatore alla matrice
 	vect		equ	16		; puntatore al vettore vect
 
@@ -509,26 +514,26 @@ sommaVettoreMatrice:
 	ADD			EDX, EDI					; i*d + j
 	IMUL		EDX, dim					; i*d*dim + j*dim
 
-	MOVAPS	XMM0, [EBX + EDX+p*0*dim]		; matrix[i][j, ..., j+p-1]
+	MOVUPS	XMM0, [EBX + EDX+p*0*dim]		; matrix[i][j, ..., j+p-1]
 	MOVAPS	XMM4, [ECX+EDI*dim+p*0*dim]	; v[j, ..., j+p-1]
-	ADDPS		XMM0, XMM4					; matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
+	ADDPS		XMM0, XMM4									; matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
 
-	MOVAPS	XMM1, [EBX + EDX+p*1*dim]
+	MOVUPS	XMM1, [EBX + EDX+p*1*dim]
 	MOVAPS	XMM4, [ECX+EDI*dim+p*1*dim]
 	ADDPS		XMM1, XMM4
 
-	MOVAPS	XMM2, [EBX + EDX+p*2*dim]
+	MOVUPS	XMM2, [EBX + EDX+p*2*dim]
 	MOVAPS	XMM4, [ECX+EDI*dim+p*2*dim]
 	ADDPS		XMM2, XMM4
 
-	MOVAPS	XMM3, [EBX + EDX+p*3*dim]
+	MOVUPS	XMM3, [EBX + EDX+p*3*dim]
 	MOVAPS	XMM4, [ECX+EDI*dim+p*3*dim]
 	ADDPS		XMM3, XMM4
 
-	MOVAPS	[EBX + EDX+p*0*dim], XMM0		; matrix[i][j, ..., j+p-1]  = matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
-	MOVAPS	[EBX + EDX+p*1*dim], XMM1
-	MOVAPS	[EBX + EDX+p*2*dim], XMM2
-	MOVAPS	[EBX + EDX+p*3*dim], XMM3
+	MOVUPS	[EBX + EDX+p*0*dim], XMM0		; matrix[i][j, ..., j+p-1]  = matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
+	MOVUPS	[EBX + EDX+p*1*dim], XMM1
+	MOVUPS	[EBX + EDX+p*2*dim], XMM2
+	MOVUPS	[EBX + EDX+p*3*dim], XMM3
 
 
 	ADD			EDI, p*unroll						; j+=4
@@ -548,10 +553,10 @@ sommaVettoreMatrice:
 	ADD			EDX, EDI					; i*d + j
 	IMUL		EDX, dim					; i*d*dim + j*dim
 
-	MOVAPS	XMM0, [EBX + EDX]		; matrix[i][j, ..., j+p-1]
+	MOVUPS	XMM0, [EBX + EDX]		; matrix[i][j, ..., j+p-1]
 	MOVAPS	XMM1, [ECX+EDI*dim]	; v[j, ..., j+p-1]
 	ADDPS		XMM0, XMM1					; matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
-	MOVAPS	[EBX + EDX], XMM0		; matrix[i][j, ..., j+p-1]  = matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
+	MOVUPS	[EBX + EDX], XMM0		; matrix[i][j, ..., j+p-1]  = matrix[i][j, ..., j+p-1] + v[j, ..., j+p-1]
 
 	ADD			EDI, p						; j+=4
 	JMP			.j_no_unroll
@@ -655,19 +660,19 @@ generaPossibileMovimento:
 	SUB			EDI, p*unroll
 
 	MOV		EDX, [EAX+12]									; &input->r
-	MOVAPS	XMM0, [EDX+ECX*dim+p*0*dim]		; input->r[ri, ..., ri+p-1]
+	MOVUPS	XMM0, [EDX+ECX*dim+p*0*dim]		; input->r[ri, ..., ri+p-1]
 	ADDPS		XMM0, XMM0										; input->r[ri, ..., ri+p-1] * 2
 	SUBPS		XMM0, [uno]										; input->r[ri, ..., ri+p-1] * 2 - 1
 
-	MOVAPS	XMM1, [EDX+ECX*dim+p*1*dim]
+	MOVUPS	XMM1, [EDX+ECX*dim+p*1*dim]
 	ADDPS		XMM1, XMM1
 	SUBPS		XMM1, [uno]
 
-	MOVAPS	XMM2, [EDX+ECX*dim+p*2*dim]
+	MOVUPS	XMM2, [EDX+ECX*dim+p*2*dim]
 	ADDPS		XMM2, XMM2
 	SUBPS		XMM2, [uno]
 
-	MOVAPS	XMM3, [EDX+ECX*dim+p*3*dim]
+	MOVUPS	XMM3, [EDX+ECX*dim+p*3*dim]
 	ADDPS		XMM3, XMM3
 	SUBPS		XMM3, [uno]
 
@@ -686,16 +691,16 @@ generaPossibileMovimento:
 	ADD			ESI, EDI						; i*d + j
 	IMUL		ESI, ESI, dim				; i*d*dim + j*dim
 
-	MOVAPS	XMM4, [EBX+ESI+p*0*dim]	; input->x[i*d*dim + j*dim]
+	MOVUPS	XMM4, [EBX+ESI+p*0*dim]	; input->x[i*d*dim + j*dim]
 	ADDPS		XMM0, XMM4							; input->x[i*d*dim
 
-	MOVAPS	XMM4, [EBX+ESI+p*1*dim]
+	MOVUPS	XMM4, [EBX+ESI+p*1*dim]
 	ADDPS		XMM1, XMM4
 
-	MOVAPS	XMM4, [EBX+ESI+p*2*dim]
+	MOVUPS	XMM4, [EBX+ESI+p*2*dim]
 	ADDPS		XMM2, XMM4
 
-	MOVAPS	XMM4, [EBX+ESI+p*3*dim]
+	MOVUPS	XMM4, [EBX+ESI+p*3*dim]
 	ADDPS		XMM3, XMM4
 
 	MOV		EDX, [EBP+y]
@@ -717,7 +722,7 @@ generaPossibileMovimento:
 	SUB			EDI, p
 
 	MOV		EDX, [EAX+12]					; &input->r
-	MOVAPS	XMM0, [EDX+ECX*dim]		; input->r[ri, ..., ri+p-1]
+	MOVUPS	XMM0, [EDX+ECX*dim]		; input->r[ri, ..., ri+p-1]
 	ADDPS		XMM0, XMM0						; input->r[ri, ..., ri+p-1] * 2
 	SUBPS		XMM0, [uno]						; input->r[ri, ..., ri+p-1] * 2 - 1
 
@@ -732,7 +737,7 @@ generaPossibileMovimento:
 	ADD			ESI, EDI						; i*d + j
 	IMUL		ESI, ESI, dim				; i*d*dim + j*dim
 
-	MOVAPS	XMM4, [EBX+ESI]		; input->x[i*d*dim + j*dim]
+	MOVUPS	XMM4, [EBX+ESI]		; input->x[i*d*dim + j*dim]
 	ADDPS		XMM0, XMM4				; input->x[i*d*dim + j*dim] + (input->r[ri, ..., ri+p-1] * 2 - 1) * input->stepind[j, ..., j+p-1]
 
 	MOV		EDX, [EBP+y]
@@ -840,11 +845,11 @@ muoviPesce:
 	IMUL		ESI, [EBP+d]					; i*d
 	ADD			ESI, EDI							; i*d + j
 	IMUL		ESI, ESI, dim					; i*d*dim + j*dim
-	MOVAPS	XMM1, [EAX+ESI]			; input->x[i*d*dim + j*dim]
+	MOVUPS	XMM1, [EAX+ESI]			; input->x[i*d*dim + j*dim]
 	SUBPS		XMM0, XMM1					; y[j, ..., j+p-1] - input->x[i*d*dim + j*dim]
 
-	MOVAPS	[ECX+ESI], XMM0			; dx[i*d*dim+j*dim] = y[j, ..., j+p-1] - input->x[i*d*dim + j*dim]
-	MOVAPS	[EAX+ESI], XMM2			; input->x[i*d*dim + j*dim] = y[j, ..., j+p-1]
+	MOVUPS	[ECX+ESI], XMM0			; dx[i*d*dim+j*dim] = y[j, ..., j+p-1] - input->x[i*d*dim + j*dim]
+	MOVUPS	[EAX+ESI], XMM2			; input->x[i*d*dim + j*dim] = y[j, ..., j+p-1]
 
 	ADD		EDI, p
 	JMP		.j
@@ -935,16 +940,16 @@ mantieniPosizionePesce:
 	IMUL		ESI, ESI, dim					; i*d*dim + j*dim
 
 	MOVAPS	XMM0, [zero]							; 0
-	MOVAPS	[EAX+ESI+p*0*dim], XMM0	; dx[i*d*dim + j*dim] = 0
+	MOVUPS	[EAX+ESI+p*0*dim], XMM0	; dx[i*d*dim + j*dim] = 0
 
 	MOVAPS	XMM1, [zero]
-	MOVAPS	[EAX+ESI+p*1*dim], XMM1
+	MOVUPS	[EAX+ESI+p*1*dim], XMM1
 
 	MOVAPS	XMM2, [zero]
-	MOVAPS	[EAX+ESI+p*2*dim], XMM2
+	MOVUPS	[EAX+ESI+p*2*dim], XMM2
 
 	MOVAPS	XMM3, [zero]
-	MOVAPS	[EAX+ESI+p*3*dim], XMM3
+	MOVUPS	[EAX+ESI+p*3*dim], XMM3
 
 	ADD			EDI, p*unroll
 	JMP			.j
@@ -964,7 +969,7 @@ mantieniPosizionePesce:
 	IMUL		ESI, ESI, dim					; i*d*dim + j*dim
 
 	MOVAPS	XMM0, [zero]					; 0
-	MOVAPS	[EAX+ESI], XMM0			; dx[i*d*dim + j*dim] = 0
+	MOVUPS	[EAX+ESI], XMM0			; dx[i*d*dim + j*dim] = 0
 
 	ADD			EDI, p
 	JMP			.j_no_unroll
@@ -1078,25 +1083,25 @@ faiMovimentoVolitivo:
 	ADD			ESI, EDI				; i*d + j
 	IMUL		ESI, ESI, dim		; i*d*dim + j*dim
 
-	MOVAPS	XMM0, [EBX+ESI+p*0*dim]			; x[i*d+j]
+	MOVUPS	XMM0, [EBX+ESI+p*0*dim]			; x[i*d+j]
 	SUBPS		XMM0, [ECX+EDI*dim+p*0*dim]	; x[i*d+j] - B[j]
 	MULPS		XMM0, XMM7					; (x[i*d+j]-B[j])*randNum
 	MULPS		XMM0, XMM5					; (x[i*d+j]-B[j])*randNum*stepvol
 	DIVPS		XMM0, XMM6					; (x[i*d+j]-B[j])*randNum*stepvol / dist (= numerator)
 
-	MOVAPS	XMM1, [EBX+ESI+p*1*dim]
+	MOVUPS	XMM1, [EBX+ESI+p*1*dim]
 	SUBPS		XMM1, [ECX+EDI*dim+p*1*dim]
 	MULPS		XMM1, XMM7
 	MULPS		XMM1, XMM5
 	DIVPS		XMM1, XMM6
 
-	MOVAPS	XMM2, [EBX+ESI+p*2*dim]
+	MOVUPS	XMM2, [EBX+ESI+p*2*dim]
 	SUBPS		XMM2, [ECX+EDI*dim+p*2*dim]
 	MULPS		XMM2, XMM7
 	MULPS		XMM2, XMM5
 	DIVPS		XMM2, XMM6
 
-	MOVAPS	XMM3, [EBX+ESI+p*3*dim]
+	MOVUPS	XMM3, [EBX+ESI+p*3*dim]
 	SUBPS		XMM3, [ECX+EDI*dim+p*3*dim]
 	MULPS		XMM3, XMM7
 	MULPS		XMM3, XMM5
@@ -1105,40 +1110,40 @@ faiMovimentoVolitivo:
 	CMP		EDX, 0								; if (weightGain)
 	JE				.false
 
-	MOVAPS	XMM4, [EBX+ESI+p*0*dim]		; x[i*d+j]
+	MOVUPS	XMM4, [EBX+ESI+p*0*dim]		; x[i*d+j]
 	SUBPS		XMM4, XMM0								; x[i*d+j] - numerator
-	MOVAPS	[EBX+ESI+p*0*dim], XMM4		; x[i*d+j] = x[i*d+j] - numerator
+	MOVUPS	[EBX+ESI+p*0*dim], XMM4		; x[i*d+j] = x[i*d+j] - numerator
 
-	MOVAPS	XMM4, [EBX+ESI+p*1*dim]
+	MOVUPS	XMM4, [EBX+ESI+p*1*dim]
 	SUBPS		XMM4, XMM1
-	MOVAPS	[EBX+ESI+p*1*dim], XMM4
+	MOVUPS	[EBX+ESI+p*1*dim], XMM4
 
-	MOVAPS	XMM4, [EBX+ESI+p*2*dim]
+	MOVUPS	XMM4, [EBX+ESI+p*2*dim]
 	SUBPS		XMM4, XMM2
-	MOVAPS	[EBX+ESI+p*2*dim], XMM4
+	MOVUPS	[EBX+ESI+p*2*dim], XMM4
 
-	MOVAPS	XMM4, [EBX+ESI+p*3*dim]
+	MOVUPS	XMM4, [EBX+ESI+p*3*dim]
 	SUBPS		XMM4, XMM3
-	MOVAPS	[EBX+ESI+p*3*dim], XMM4
+	MOVUPS	[EBX+ESI+p*3*dim], XMM4
 
 	JMP			.end_false
 
 .false:
-	MOVAPS	XMM4, [EBX+ESI+p*0*dim]		; x[i*d+j]
+	MOVUPS	XMM4, [EBX+ESI+p*0*dim]		; x[i*d+j]
 	ADDPS		XMM4, XMM0								; x[i*d+j] - numerator
-	MOVAPS	[EBX+ESI+p*0*dim], XMM4		; x[i*d+j] = x[i*d+j] - numerator
+	MOVUPS	[EBX+ESI+p*0*dim], XMM4		; x[i*d+j] = x[i*d+j] - numerator
 
-	MOVAPS	XMM4, [EBX+ESI+p*1*dim]
+	MOVUPS	XMM4, [EBX+ESI+p*1*dim]
 	ADDPS		XMM4, XMM1
-	MOVAPS	[EBX+ESI+p*1*dim], XMM4
+	MOVUPS	[EBX+ESI+p*1*dim], XMM4
 
-	MOVAPS	XMM4, [EBX+ESI+p*2*dim]
+	MOVUPS	XMM4, [EBX+ESI+p*2*dim]
 	ADDPS		XMM4, XMM2
-	MOVAPS	[EBX+ESI+p*2*dim], XMM4
+	MOVUPS	[EBX+ESI+p*2*dim], XMM4
 
-	MOVAPS	XMM4, [EBX+ESI+p*3*dim]
+	MOVUPS	XMM4, [EBX+ESI+p*3*dim]
 	ADDPS		XMM4, XMM3
-	MOVAPS	[EBX+ESI+p*3*dim], XMM4
+	MOVUPS	[EBX+ESI+p*3*dim], XMM4
 
 .end_false:
 
@@ -1159,7 +1164,7 @@ faiMovimentoVolitivo:
 	ADD			ESI, EDI				; i*d + j
 	IMUL		ESI, ESI, dim		; i*d*dim + j*dim
 
-	MOVAPS	XMM0, [EBX+ESI]			; x[i*d+j]
+	MOVUPS	XMM0, [EBX+ESI]			; x[i*d+j]
 	SUBPS		XMM0, [ECX+EDI*dim]	; x[i*d+j] - B[j]
 	MULPS		XMM0, XMM7					; (x[i*d+j]-B[j])*randNum
 	MULPS		XMM0, XMM5					; (x[i*d+j]-B[j])*randNum*stepvol
@@ -1169,16 +1174,16 @@ faiMovimentoVolitivo:
 	CMP		EDX, 0								; if (weightGain)
 	JE				.false_no_unroll
 
-	MOVAPS	XMM4, [EBX+ESI]			; x[i*d+j]
+	MOVUPS	XMM4, [EBX+ESI]			; x[i*d+j]
 	SUBPS		XMM4, XMM0					; x[i*d+j] - numerator
-	MOVAPS	[EBX+ESI], XMM4			; x[i*d+j] = x[i*d+j] - numerator
+	MOVUPS	[EBX+ESI], XMM4			; x[i*d+j] = x[i*d+j] - numerator
 
 	JMP			.end_false_no_unroll
 
 .false_no_unroll:
-	MOVAPS	XMM4, [EBX+ESI]			; x[i*d+j]
+	MOVUPS	XMM4, [EBX+ESI]			; x[i*d+j]
 	ADDPS		XMM4, XMM0					; x[i*d+j] + numerator
-	MOVAPS	[EBX+ESI], XMM4			; x[i*d+j] = x[i*d+j] - numerator
+	MOVUPS	[EBX+ESI], XMM4			; x[i*d+j] = x[i*d+j] - numerator
 
 .end_false_no_unroll:
 
