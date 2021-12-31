@@ -248,7 +248,7 @@ distanzaEuclidea:
 	MOV 		EDI, ESI				; temp = i
 	ADD 		EDI, p*unroll		; temp += p*unroll		per controllare che siano presenti almeno p*unroll elementi nella prossima iterazione
 	CMP		EDI, ECX				; temp < n
-	JGE			.i_no_unroll
+	JG			.i_no_unroll
 
 	MOVUPS	XMM4, [EAX + ESI*dim+p*0*dim]	; XMM4 = v1[i ... i+p-1]
 	MOVUPS	XMM5, [EAX + ESI*dim+p*1*dim]
@@ -278,7 +278,7 @@ distanzaEuclidea:
 	MOV 		EDI, ESI				; temp = i
 	ADD 		EDI, p					; temp += p		per controllare che siano presenti almeno p elementi nella prossima iterazione
 	CMP		EDI, ECX				; temp < n
-	JGE			.i_scalar
+	JG			.i_scalar
 
 	MOVUPS	XMM4, [EAX + ESI*dim]	; XMM4 = v1[i ... i+p-1]
 	SUBPS		XMM4, [EBX + ESI*dim]	; XMM4 -= v2[i ... i+p-1]
