@@ -369,8 +369,8 @@ mediaPesata:
 	; corpo della funzione
 
 
-	MOVSS		XMM4, [EBP+sumVect]	; XMM4 = sumV
-	SHUFPS 	XMM4, XMM4, 0				; XMM4 = sumV[i, ..., i+p-1] = sumV
+	MOVSS		XMM1, [EBP+sumVect]	; XMM4 = sumV
+	SHUFPS 	XMM1, XMM1, 0				; XMM4 = sumV[i, ..., i+p-1] = sumV
 
 	MOV		ESI, 0		; i = 0
 .i:
@@ -379,8 +379,8 @@ mediaPesata:
 
 	MOV		ECX, [EBP+vect]		; &v
 
-	MOVSS		XMM6, [ECX+ESI*dim]	; XMM6 = v[i]
-	SHUFPS 	XMM6, XMM6, 0				; XMM6 = v[i, ..., i+p-1] = v[i]
+	MOVSS		XMM2, [ECX+ESI*dim]	; XMM6 = v[i]
+	SHUFPS 	XMM2, XMM2, 0				; XMM6 = v[i, ..., i+p-1] = v[i]
 
 	MOV		ECX, [EBP+mediaP]			; &mediaP
 
@@ -397,8 +397,8 @@ mediaPesata:
 	IMUL		EDX, dim					; i*d*dim + j*dim
 
 	MOVUPS	XMM0, [EBX + EDX]		; matrix[i][j, ..., j+p-1]
-	MULPS		XMM0, XMM6 				; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1]
-	DIVPS		XMM0, XMM4					; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
+	MULPS		XMM0, XMM2 				; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1]
+	DIVPS		XMM0, XMM1					; matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
 
 	ADDPS		XMM0, [ECX+EDI*dim] 	; mediaP[j, ..., j+p-1] += matrix[i][j, ..., j+p-1] * v[i, ..., i+p-1] / sumV[i, ..., i+p-1]
 	MOVAPS	[ECX+EDI*dim], XMM0
@@ -418,11 +418,9 @@ mediaPesata:
 	ADD			EDX, EDI					; i*d + j
 	IMUL		EDX, dim					; i*d*dim + j*dim
 
-	MOV		ECX, [EBP+vect]		; &v
-
 	MOVSS		XMM0, [EBX + EDX]		; matrix[i][j]
-	MULSS		XMM0, XMM6					; matrix[i][j] * v[i]
-	DIVSS		XMM0, XMM4					; matrix[i][j] * v[i] / sumV
+	MULSS		XMM0, XMM2					; matrix[i][j] * v[i]
+	DIVSS		XMM0, XMM1					; matrix[i][j] * v[i] / sumV
 
 	ADDSS		XMM0, [ECX+EDI*dim] 	; mediaP[j] += matrix[i][j] * v[i] / sumV[i]
 	MOVSS		[ECX+EDI*dim], XMM0
