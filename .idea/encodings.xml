@@ -4,6 +4,8 @@
     <file url="file://$PROJECT_DIR$/fss32omp/fss32comp.c" charset="windows-1252" />
     <file url="file://$PROJECT_DIR$/fss32omp/fss32omp.nasm" charset="windows-1252" />
     <file url="file://$PROJECT_DIR$/fss64/fss64c.c" charset="windows-1252" />
+    <file url="file://$PROJECT_DIR$/fss64omp/fss64comp.c" charset="windows-1252" />
+    <file url="file://$PROJECT_DIR$/fss64omp/fss64omp.nasm" charset="windows-1252" />
     <file url="file://G:/Il mio Drive/UNI/Ing. Info. Magistrale/I anno/I semestre/Architetture e Programmazione dei Sistemi di Elaborazione/_progetto/CodiceProgettoFSS/Alessandro/fss/fss32/1_versioneSoloConGeneraPossibileMovimentoInAssembly/fss32c.c" charset="windows-1252" />
     <file url="file://G:/Il mio Drive/UNI/Ing. Info. Magistrale/I anno/I semestre/Architetture e Programmazione dei Sistemi di Elaborazione/_progetto/CodiceProgettoFSS/Alessandro/fss/fss32/2_versioneAncheConSpostamentoEMantenimentoInAssembly/fss32c.c" charset="windows-1252" />
     <file url="file://G:/Il mio Drive/UNI/Ing. Info. Magistrale/I anno/I semestre/Architetture e Programmazione dei Sistemi di Elaborazione/_progetto/CodiceProgettoFSS/Alessandro/fss/fss32/3_versioneNuovaConAncheVettorizzazioneMovimentoVolitivo/fss32c.c" charset="windows-1252" />
