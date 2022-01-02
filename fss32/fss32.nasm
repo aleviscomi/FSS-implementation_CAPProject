@@ -369,8 +369,8 @@ mediaPesata:
 	; corpo della funzione
 
 
-	MOVSS		XMM1, [EBP+sumVect]	; XMM4 = sumV
-	SHUFPS 	XMM1, XMM1, 0				; XMM4 = sumV[i, ..., i+p-1] = sumV
+	MOVSS		XMM1, [EBP+sumVect]	; XMM1 = sumV
+	SHUFPS 	XMM1, XMM1, 0				; XMM1 = sumV[i, ..., i+p-1] = sumV
 
 	MOV		ESI, 0		; i = 0
 .i:
@@ -379,8 +379,8 @@ mediaPesata:
 
 	MOV		ECX, [EBP+vect]		; &v
 
-	MOVSS		XMM2, [ECX+ESI*dim]	; XMM6 = v[i]
-	SHUFPS 	XMM2, XMM2, 0				; XMM6 = v[i, ..., i+p-1] = v[i]
+	MOVSS		XMM2, [ECX+ESI*dim]	; XMM2 = v[i]
+	SHUFPS 	XMM2, XMM2, 0				; XMM2 = v[i, ..., i+p-1] = v[i]
 
 	MOV		ECX, [EBP+mediaP]			; &mediaP
 
@@ -650,6 +650,11 @@ generaPossibileMovimento:
 	; corpo della funzione
 	;
 
+
+	MOVSS		XMM4, [EAX+28]		; input->stepind
+	SHUFPS	XMM4, XMM4, 0			; input->stepind[j, ..., j+p-1]
+
+
 	XOR			EDI, EDI					; j = 0
 .j:
 	ADD			EDI, p*unroll
@@ -676,9 +681,6 @@ generaPossibileMovimento:
 
 	ADD			ECX, p*unroll
 
-	MOVSS		XMM4, [EAX+28]		; input->stepind
-	SHUFPS	XMM4, XMM4, 0			; input->stepind[j, ..., j+p-1]
-
 	MULPS		XMM0, XMM4				; (input->r[ri, ..., ri+p-1] * 2 - 1) * input->stepind[j, ..., j+p-1]
 	MULPS		XMM1, XMM4
 	MULPS		XMM2, XMM4
@@ -689,17 +691,17 @@ generaPossibileMovimento:
 	ADD			ESI, EDI						; i*d + j
 	IMUL		ESI, ESI, dim				; i*d*dim + j*dim
 
-	MOVUPS	XMM4, [EBX+ESI+p*0*dim]	; input->x[i*d*dim + j*dim]
-	ADDPS		XMM0, XMM4							; input->x[i*d*dim
+	MOVUPS	XMM5, [EBX+ESI+p*0*dim]	; input->x[i*d*dim + j*dim]
+	ADDPS		XMM0, XMM5							; input->x[i*d*dim + j*dim]+(input->r[ri, ..., ri+p-1] * 2 - 1) * input->stepind[j, ..., j+p-1]
 
-	MOVUPS	XMM4, [EBX+ESI+p*1*dim]
-	ADDPS		XMM1, XMM4
+	MOVUPS	XMM5, [EBX+ESI+p*1*dim]
+	ADDPS		XMM1, XMM5
 
-	MOVUPS	XMM4, [EBX+ESI+p*2*dim]
-	ADDPS		XMM2, XMM4
+	MOVUPS	XMM5, [EBX+ESI+p*2*dim]
+	ADDPS		XMM2, XMM5
 
-	MOVUPS	XMM4, [EBX+ESI+p*3*dim]
-	ADDPS		XMM3, XMM4
+	MOVUPS	XMM5, [EBX+ESI+p*3*dim]
+	ADDPS		XMM3, XMM5
 
 	MOV		EDX, [EBP+y]
 	MOVAPS	[EDX+EDI*dim+p*0*dim], XMM0
@@ -726,8 +728,6 @@ generaPossibileMovimento:
 
 	ADD			ECX, p
 
-	MOVSS		XMM4, [EAX+28]		; input->stepind
-	SHUFPS	XMM4, XMM4, 0			; input->stepind[j, ..., j+p-1]
 	MULPS		XMM0, XMM4				; (input->r[ri, ..., ri+p-1] * 2 - 1) * input->stepind[j, ..., j+p-1]
 
 	MOV		ESI, [EBP+i]					; i
@@ -735,8 +735,8 @@ generaPossibileMovimento:
 	ADD			ESI, EDI						; i*d + j
 	IMUL		ESI, ESI, dim				; i*d*dim + j*dim
 
-	MOVUPS	XMM4, [EBX+ESI]		; input->x[i*d*dim + j*dim]
-	ADDPS		XMM0, XMM4				; input->x[i*d*dim + j*dim] + (input->r[ri, ..., ri+p-1] * 2 - 1) * input->stepind[j, ..., j+p-1]
+	MOVUPS	XMM5, [EBX+ESI]		; input->x[i*d*dim + j*dim]
+	ADDPS		XMM0, XMM5				; input->x[i*d*dim + j*dim] + (input->r[ri, ..., ri+p-1] * 2 - 1) * input->stepind[j, ..., j+p-1]
 
 	MOV		EDX, [EBP+y]
 	MOVAPS	[EDX+EDI*dim], XMM0
@@ -758,7 +758,6 @@ generaPossibileMovimento:
 
 	INC			ECX
 
-	MOVSS		XMM4, [EAX+28]		; input->stepind
 	MULSS		XMM0, XMM4				; (input->r[ri] * 2 - 1) * input->stepind
 
 	MOV		ESI, [EBP+i]					; i
@@ -766,8 +765,8 @@ generaPossibileMovimento:
 	ADD			ESI, EDI						; i*d + j
 	IMUL		ESI, ESI, dim				; i*d*dim + j*dim
 
-	MOVSS		XMM4, [EBX+ESI]		; input->x[i*d*dim + j*dim]
-	ADDSS		XMM0, XMM4				; input->x[i*d*dim + j*dim] + (input->r[jri * 2 - 1) * input->stepind[j]
+	MOVSS		XMM5, [EBX+ESI]		; input->x[i*d*dim + j*dim]
+	ADDSS		XMM0, XMM5				; input->x[i*d*dim + j*dim] + (input->r[jri * 2 - 1) * input->stepind[j]
 
 	MOV		EDX, [EBP+y]
 	MOVSS		[EDX+EDI*dim], XMM0
@@ -800,7 +799,7 @@ generaPossibileMovimento:
 
 global muoviPesce
 
-	x					equ	8		; puntatore al vettore dei parametri
+	x					equ	8		; puntatore alla matrice delle posizioni dei pesci
 	y2				equ	12	; puntatore al vettore delle possibili nuove posizioni
 	deltaX			equ	16	; puntatore alla matrice delle variazioni di posizione
 	i2					equ	20	; indice del pesce i-esimo
@@ -895,13 +894,9 @@ muoviPesce:
 
 global mantieniPosizionePesce
 
-	align 16
-	zero				dd	0.0, 0.0, 0.0, 0.0		; 0
-
 	deltaX2		equ	8		; puntatore alla matrice delle variazioni di posizione
 	i3					equ	12	; indice del pesce i-esimo
 	d2				equ	16	; input->d
-
 
 mantieniPosizionePesce:
 
@@ -937,16 +932,16 @@ mantieniPosizionePesce:
 	ADD			ESI, EDI							; i*d + j
 	IMUL		ESI, ESI, dim					; i*d*dim + j*dim
 
-	MOVAPS	XMM0, [zero]							; 0
+	XORPS		XMM0, XMM0						; 0
 	MOVUPS	[EAX+ESI+p*0*dim], XMM0	; dx[i*d*dim + j*dim] = 0
 
-	MOVAPS	XMM1, [zero]
+	XORPS		XMM1, XMM1
 	MOVUPS	[EAX+ESI+p*1*dim], XMM1
 
-	MOVAPS	XMM2, [zero]
+	XORPS		XMM2, XMM2
 	MOVUPS	[EAX+ESI+p*2*dim], XMM2
 
-	MOVAPS	XMM3, [zero]
+	XORPS		XMM3, XMM3
 	MOVUPS	[EAX+ESI+p*3*dim], XMM3
 
 	ADD			EDI, p*unroll
@@ -966,7 +961,7 @@ mantieniPosizionePesce:
 	ADD			ESI, EDI							; i*d + j
 	IMUL		ESI, ESI, dim					; i*d*dim + j*dim
 
-	MOVAPS	XMM0, [zero]					; 0
+	XORPS		XMM0, XMM0					; 0
 	MOVUPS	[EAX+ESI], XMM0			; dx[i*d*dim + j*dim] = 0
 
 	ADD			EDI, p
@@ -984,7 +979,7 @@ mantieniPosizionePesce:
 	ADD			ESI, EDI							; i*d + j
 	IMUL		ESI, ESI, dim					; i*d*dim + j*dim
 
-	MOVSS		XMM0, [zero]					; 0
+	XORPS		XMM0, XMM0					; 0
 	MOVSS		[EAX+ESI], XMM0			; dx[i*d*dim + j*dim] = 0
 
 	INC			EDI
